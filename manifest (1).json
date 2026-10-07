@@ -1,0 +1,13 @@
+{
+  "background_color": "#ffffff",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "บันทึกรายรับรายจ่าย",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "บันทึกเงิน",
+  "start_url": "https://fmshfygvt.streamlit.app",
+  "theme_color": "#ffffff",
+  "description": "แอปบันทึกรายรับรายจ่ายส่วนตัว",
+  "lang": "th"
+}
