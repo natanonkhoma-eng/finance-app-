@@ -46,10 +46,11 @@ if "user" not in st.session_state:
             try:
                 res = supabase.auth.sign_in_with_password({"email": email, "password": password})
                 st.session_state.user = res.user
-                st.success("✅ เข้าสู่ระบบสำเร็จ!")
+                st.balloons()
+                st.success("✅ เข้าสู่ระบบสำเร็จ! ยินดีต้อนรับกลับมา", icon="✅")
                 st.rerun()
             except Exception:
-                st.error("❌ อีเมลหรือรหัสผ่านไม่ถูกต้อง")
+                st.error("❌ อีเมลหรือรหัสผ่านไม่ถูกต้อง", icon="❌")
     
     with tab2:
         email2 = st.text_input("อีเมล", key="reg_email")
@@ -57,9 +58,11 @@ if "user" not in st.session_state:
         if st.button("สร้างบัญชี", type="primary"):
             try:
                 supabase.auth.sign_up({"email": email2, "password": password2})
-                st.success("✅ สร้างบัญชีสำเร็จ! ตรวจสอบอีเมลแล้วเข้าสู่ระบบ")
+                st.balloons()
+                st.success("🎉 สมัครสมาชิกสำเร็จ!", icon="✅")
+                st.info("📧 กรุณาตรวจสอบอีเมลเพื่อยืนยันบัญชี แล้วเข้าสู่ระบบ", icon="📧")
             except Exception as e:
-                st.error(f"❌ ผิดพลาด: {e}")
+                st.error(f"❌ สมัครไม่สำเร็จ: {e}", icon="❌")
     st.stop()
 
 user = st.session_state.user
@@ -68,7 +71,7 @@ user = st.session_state.user
 st.title(f"💰 บันทึกรายรับรายจ่าย")
 st.write(f"👤 คุณ: {user.email}")
 
-# ---------- เมนูด้านข้าง — เพิ่มครบทุกส่วน ----------
+# ---------- เมนูด้านข้าง — ครบทุกส่วน ----------
 st.sidebar.header("เมนูหลัก")
 menu = st.sidebar.radio(
     "เลือกทำงาน",
@@ -77,19 +80,20 @@ menu = st.sidebar.radio(
         "ดูรายการทั้งหมด",
         "ค้นหา",
         "ส่งออกข้อมูล",
+        "แก้ไข & ลบรายการ",
         "จัดการบัญชี"
     ]
 )
 
 st.sidebar.divider()
 
-# ---------- ออกจากระบบ — แยกชัดเจน ----------
 if st.sidebar.button("🚪 ออกจากระบบ", type="secondary"):
     try:
         supabase.auth.sign_out()
     except Exception:
         pass
-    del st.session_state.user
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
     st.rerun()
 
 st.divider()
@@ -108,7 +112,7 @@ if menu == "เพิ่มรายการ":
         
         if st.form_submit_button("บันทึก", type="primary"):
             if not item or amount <= 0:
-                st.error("❌ กรอกรายการและจำนวนเงินให้ครบ")
+                st.error("❌ กรอกรายการและจำนวนเงินให้ครบ", icon="❌")
             else:
                 supabase.table("entries").insert({
                     "user_id": user.id,
@@ -117,7 +121,8 @@ if menu == "เพิ่มรายการ":
                     "type": typ,
                     "amount": amount
                 }).execute()
-                st.success("✅ บันทึกสำเร็จ!")
+                st.balloons()
+                st.success("✅ บันทึกข้อมูลสำเร็จ!", icon="✅")
                 st.rerun()
 
 # ==================================================
@@ -175,7 +180,7 @@ elif menu == "ค้นหา":
             st.info("ยังไม่มีข้อมูลในระบบ")
 
 # ==================================================
-# 4️⃣ ส่งออกข้อมูล — ส่วนที่หายไป!
+# 4️⃣ ส่งออกข้อมูล
 # ==================================================
 elif menu == "ส่งออกข้อมูล":
     st.subheader("📤 ส่งออกข้อมูลสำรอง")
@@ -189,11 +194,9 @@ elif menu == "ส่งออกข้อมูล":
         df_export.columns = ["วันที่", "รายการ", "ประเภท", "จำนวนเงิน"]
         
         st.dataframe(df_export, use_container_width=True, hide_index=True)
-        
         st.divider()
         col1, col2 = st.columns(2)
         
-        # ส่งออก CSV
         csv = df_export.to_csv(index=False, encoding="utf-8-sig")
         col1.download_button(
             label="📥 ดาวน์โหลดไฟล์ CSV",
@@ -202,7 +205,6 @@ elif menu == "ส่งออกข้อมูล":
             mime="text/csv"
         )
         
-        # ส่งออก JSON
         json_data = df_export.to_json(orient="records", force_ascii=False, indent=2)
         col2.download_button(
             label="📥 ดาวน์โหลดไฟล์ JSON",
@@ -211,12 +213,69 @@ elif menu == "ส่งออกข้อมูล":
             mime="application/json"
         )
         
-        st.success(f"✅ พบรายการทั้งหมด {len(df_export)} รายการ พร้อมส่งออกแล้ว")
+        st.success(f"✅ พบรายการทั้งหมด {len(df_export)} รายการ พร้อมส่งออกแล้ว", icon="✅")
     else:
         st.info("ยังไม่มีข้อมูล ไม่มีอะไรส่งออกครับ")
 
 # ==================================================
-# 5️⃣ จัดการบัญชี
+# 5️⃣ แก้ไข & ลบรายการ
+# ==================================================
+elif menu == "แก้ไข & ลบรายการ":
+    st.subheader("🔧 แก้ไขหรือลบรายการ")
+    
+    res = supabase.table("entries").select("*").eq("user_id", user.id).order("date", desc=True).execute()
+    
+    if not res.data:
+        st.info("ยังไม่มีรายการที่จะแก้ไข")
+        st.stop()
+    
+    df = pd.DataFrame(res.data)
+    df["display_date"] = pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d")
+    df["label"] = df["display_date"] + " | " + df["type"] + " | " + df["title"] + " | " + df["amount"].astype(str) + " บาท"
+    
+    selected_label = st.selectbox("เลือกรายการที่ต้องการแก้ไข/ลบ", ["-- เลือก --"] + list(df["label"]))
+    
+    if selected_label != "-- เลือก --":
+        row = df[df["label"] == selected_label].iloc[0]
+        st.divider()
+        st.subheader(f"จัดการ: {row['title']}")
+        
+        col_edit, col_del = st.columns(2)
+        
+        with col_edit:
+            st.subheader("✏️ แก้ไขข้อมูล")
+            with st.form("edit_form"):
+                edit_date = st.date_input("วันที่", value=pd.to_datetime(row["date"]))
+                edit_type = st.radio("ประเภท", ["รายรับ", "รายจ่าย"], 
+                                     index=0 if row["type"] == "รายรับ" else 1)
+                edit_title = st.text_input("รายการ", value=row["title"])
+                edit_amount = st.number_input("จำนวนเงิน", min_value=0.0, value=float(row["amount"]))
+                
+                if st.form_submit_button("✅ บันทึกการแก้ไข"):
+                    supabase.table("entries").update({
+                        "date": edit_date.isoformat(),
+                        "type": edit_type,
+                        "title": edit_title,
+                        "amount": edit_amount
+                    }).eq("id", row["id"]).execute()
+                    st.success("✅ แก้ไขข้อมูลเรียบร้อยแล้ว", icon="✅")
+                    st.rerun()
+        
+        with col_del:
+            st.subheader("🗑️ ลบรายการนี้")
+            if "del_conf" not in st.session_state or st.session_state.del_conf != row["id"]:
+                if st.button("🗑️ ลบรายการนี้", type="secondary"):
+                    st.session_state.del_conf = row["id"]
+                    st.warning("⚠️ กดอีกครั้งเพื่อยืนยันลบ — กู้คืนไม่ได้!", icon="⚠️")
+            else:
+                if st.button("✅ ยืนยันลบ", type="primary"):
+                    supabase.table("entries").delete().eq("id", row["id"]).execute()
+                    st.success("✅ ลบรายการสำเร็จ!", icon="✅")
+                    del st.session_state.del_conf
+                    st.rerun()
+
+# ==================================================
+# 6️⃣ จัดการบัญชี
 # ==================================================
 elif menu == "จัดการบัญชี":
     st.subheader("⚙️ จัดการบัญชี & ข้อมูล")
@@ -225,21 +284,18 @@ elif menu == "จัดการบัญชี":
     st.write(f"🆔 รหัสผู้ใช้: `{user.id}`")
     st.divider()
     
-    # ล้างข้อมูล
     if st.button("🗑️ ล้างข้อมูลทั้งหมดของฉัน", type="secondary"):
-        if "confirm_clear" not in st.session_state:
-            st.session_state.confirm_clear = True
-            st.warning("⚠️ กดอีกครั้งเพื่อยืนยัน — ข้อมูลจะหายไปตลอดกาล!")
+        if "clear_all_conf" not in st.session_state:
+            st.session_state.clear_all_conf = True
+            st.warning("⚠️ กดอีกครั้งเพื่อยืนยัน — ข้อมูลทั้งหมดจะหายไป!", icon="⚠️")
         else:
-            # ลบทุกรายการของผู้ใช้
             supabase.table("entries").delete().eq("user_id", user.id).execute()
-            st.success("✅ ล้างข้อมูลเรียบร้อย")
-            del st.session_state.confirm_clear
+            st.success("✅ ล้างข้อมูลทั้งหมดเรียบร้อย", icon="✅")
+            del st.session_state.clear_all_conf
             st.rerun()
     
     st.divider()
     
-    # ออกจากระบบ
     if st.button("🚪 ออกจากระบบทันที", type="primary"):
         try:
             supabase.auth.sign_out()
