@@ -67,11 +67,17 @@ if "user" not in st.session_state:
 
 user = st.session_state.user
 
+# ---------- แจ้งเตือนหลังทำสำเร็จ — ส่วนสำคัญ! ----------
+if "show_success" in st.session_state:
+    st.balloons()
+    st.success(st.session_state.show_success, icon="✅")
+    del st.session_state.show_success
+
 # ---------- หัวข้อ + ข้อมูลผู้ใช้ ----------
 st.title(f"💰 บันทึกรายรับรายจ่าย")
 st.write(f"👤 คุณ: {user.email}")
 
-# ---------- เมนูด้านข้าง — ครบทุกส่วน ----------
+# ---------- เมนูด้านข้าง ----------
 st.sidebar.header("เมนูหลัก")
 menu = st.sidebar.radio(
     "เลือกทำงาน",
@@ -103,6 +109,7 @@ st.divider()
 # ==================================================
 if menu == "เพิ่มรายการ":
     st.subheader("➕ เพิ่มรายการใหม่")
+
     with st.form("add_form"):
         date = st.date_input("วันที่", value=datetime.today())
         typ = st.radio("ประเภท", ["รายรับ", "รายจ่าย"])
@@ -121,8 +128,7 @@ if menu == "เพิ่มรายการ":
                     "type": typ,
                     "amount": amount
                 }).execute()
-                st.balloons()
-                st.success("✅ บันทึกข้อมูลสำเร็จ!", icon="✅")
+                st.session_state.show_success = "✅ บันทึกข้อมูลสำเร็จ!"
                 st.rerun()
 
 # ==================================================
@@ -258,7 +264,7 @@ elif menu == "แก้ไข & ลบรายการ":
                         "title": edit_title,
                         "amount": edit_amount
                     }).eq("id", row["id"]).execute()
-                    st.success("✅ แก้ไขข้อมูลเรียบร้อยแล้ว", icon="✅")
+                    st.session_state.show_success = "✅ แก้ไขข้อมูลเรียบร้อยแล้ว"
                     st.rerun()
         
         with col_del:
@@ -267,6 +273,44 @@ elif menu == "แก้ไข & ลบรายการ":
                 if st.button("🗑️ ลบรายการนี้", type="secondary"):
                     st.session_state.del_conf = row["id"]
                     st.warning("⚠️ กดอีกครั้งเพื่อยืนยันลบ — กู้คืนไม่ได้!", icon="⚠️")
+            else:
+                if st.button("✅ ยืนยันลบ", type="primary"):
+                    supabase.table("entries").delete().eq("id", row["id"]).execute()
+                    st.session_state.show_success = "✅ ลบรายการสำเร็จ!"
+                    del st.session_state.del_conf
+                    st.rerun()
+
+# ==================================================
+# 6️⃣ จัดการบัญชี
+# ==================================================
+elif menu == "จัดการบัญชี":
+    st.subheader("⚙️ จัดการบัญชี & ข้อมูล")
+    
+    st.write(f"📧 อีเมล: {user.email}")
+    st.write(f"🆔 รหัสผู้ใช้: `{user.id}`")
+    st.divider()
+    
+    if st.button("🗑️ ล้างข้อมูลทั้งหมดของฉัน", type="secondary"):
+        if "clear_all_conf" not in st.session_state:
+            st.session_state.clear_all_conf = True
+            st.warning("⚠️ กดอีกครั้งเพื่อยืนยัน — ข้อมูลทั้งหมดจะหายไป!", icon="⚠️")
+        else:
+            supabase.table("entries").delete().eq("user_id", user.id).execute()
+            st.session_state.show_success = "✅ ล้างข้อมูลทั้งหมดเรียบร้อย"
+            del st.session_state.clear_all_conf
+            st.rerun()
+    
+    st.divider()
+    
+    if st.button("🚪 ออกจากระบบทันที", type="primary"):
+        try:
+            supabase.auth.sign_out()
+        except Exception:
+            pass
+        for key in list(st.session_state.keys()):
+            del st.session_state[key]
+        st.rerun()
+้งเพื่อยืนยันลบ — กู้คืนไม่ได้!", icon="⚠️")
             else:
                 if st.button("✅ ยืนยันลบ", type="primary"):
                     supabase.table("entries").delete().eq("id", row["id"]).execute()
