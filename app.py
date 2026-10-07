@@ -1,111 +1,111 @@
 import streamlit as st
-import sqlite3
 import pandas as pd
-from datetime import datetime
+from supabase import create_client, Client
 
-st.set_page_config(page_title="บันทึกรายรับ-รายจ่าย", page_icon="💰", layout="wide")
+# ตั้งค่าหน้าแอป
+st.set_page_config(
+    page_title="บันทึกรายรับรายจ่าย",
+    page_icon="💰",
+    layout="wide"
+)
 
-def get_db():
-    conn = sqlite3.connect('finance_db.db')
-    conn.row_factory = sqlite3.Row
-    return conn
+# เชื่อมต่อฐานข้อมูล
+@st.cache_resource
+def init_supabase():
+    url = st.secrets.get("SUPABASE_URL", "")
+    key = st.secrets.get("SUPABASE_KEY", "")
+    if url and key:
+        return create_client(url, key)
+    return None
 
-def init_db():
-    conn = get_db()
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS transactions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        date TEXT NOT NULL,
-        type TEXT NOT NULL CHECK(type IN ('รายรับ','รายจ่าย')),
-        item TEXT NOT NULL,
-        amount REAL NOT NULL,
-        note TEXT
-    )''')
-    conn.commit()
-    conn.close()
+supabase = init_supabase()
 
-init_db()
+if not supabase:
+    st.error("❌ ยังไม่ได้ตั้งค่า Secrets ที่ Streamlit")
+    st.stop()
 
-def get_all_transactions():
-    conn = get_db()
-    df = pd.read_sql("SELECT * FROM transactions ORDER BY date DESC, id DESC", conn)
-    conn.close()
-    return df
-
-def add_transaction(date, typ, item, amount, note):
-    conn = get_db()
-    conn.execute("INSERT INTO transactions (date,type,item,amount,note) VALUES (?,?,?,?,?)",
-                 (date, typ, item, amount, note))
-    conn.commit()
-    conn.close()
-
-def delete_transaction(tid):
-    conn = get_db()
-    conn.execute("DELETE FROM transactions WHERE id=?", (tid,))
-    conn.commit()
-    conn.close()
-
-st.title("💰 บันทึกรายรับ-รายจ่าย")
-st.markdown("---")
-
-df = get_all_transactions()
-if not df.empty:
-    total_income = df[df['type']=='รายรับ']['amount'].sum()
-    total_expense = df[df['type']=='รายจ่าย']['amount'].sum()
-    balance = total_income - total_expense
-else:
-    total_income = total_expense = balance = 0
-
-col1, col2, col3 = st.columns(3)
-col1.metric("💵 รวมรายรับ", f"{total_income:,.2f} บาท")
-col2.metric("💸 รวมรายจ่าย", f"{total_expense:,.2f} บาท")
-col3.metric("💳 ยอดคงเหลือ", f"{balance:,.2f} บาท")
-
-st.markdown("---")
-menu = st.sidebar.radio("เมนู", ["เพิ่มรายการ", "ดูรายการทั้งหมด", "ค้นหา", "ลบรายการ", "ส่งออกข้อมูล"])
-
-if menu == "เพิ่มรายการ":
-    st.subheader("➕ เพิ่มรายการใหม่")
-    with st.form("add_form"):
-        date = st.date_input("วันที่", datetime.today())
-        typ = st.radio("ประเภท", ["รายรับ", "รายจ่าย"])
-        item = st.text_input("รายการ")
-        amount = st.number_input("จำนวนเงิน", min_value=0.0, step=1.0)
-        note = st.text_input("หมายเหตุ (ถ้ามี)")
-        if st.form_submit_button("บันทึก"):
-            if not item or amount<=0:
-                st.error("กรอกรายการและจำนวนเงินให้ครบ")
-            else:
-                add_transaction(date.strftime("%Y-%m-%d"), typ, item, amount, note)
-                st.success("✅ บันทึกสำเร็จ!")
+# ถ้ายังไม่ล็อกอิน → แสดงหน้าเข้าสู่ระบบ
+if "user" not in st.session_state:
+    st.title("💰 บันทึกรายรับรายจ่าย")
+    
+    tab1, tab2 = st.tabs(["เข้าสู่ระบบ", "ลงทะเบียน"])
+    
+    with tab1:
+        email = st.text_input("อีเมล", key="login_email")
+        password = st.text_input("รหัสผ่าน", type="password", key="login_pass")
+        if st.button("เข้าสู่ระบบ", type="primary"):
+            try:
+                res = supabase.auth.sign_in_with_password({"email":email, "password":password})
+                st.session_state.user = res.user
+                st.success("✅ เข้าสู่ระบบสำเร็จ!")
                 st.rerun()
+            except Exception as e:
+                st.error("❌ อีเมลหรือรหัสผ่านไม่ถูกต้อง")
+    
+    with tab2:
+        email2 = st.text_input("อีเมล", key="reg_email")
+        password2 = st.text_input("รหัสผ่าน", type="password", key="reg_pass")
+        if st.button("สร้างบัญชี", type="primary"):
+            try:
+                supabase.auth.sign_up({"email":email2, "password":password2})
+                st.success("✅ สร้างบัญชีสำเร็จ! กรุณาเข้าสู่ระบบ")
+            except Exception as e:
+                st.error(f"❌ ผิดพลาด: {e}")
+    
+    st.stop()
 
-elif menu == "ดูรายการทั้งหมด":
-    st.subheader("📋 รายการทั้งหมด")
-    st.dataframe(df if not df.empty else "ยังไม่มีรายการ", use_container_width=True, hide_index=True)
+# ---------- หน้าหลักหลังล็อกอิน ----------
+user = st.session_state.user
+st.title(f"💰 บันทึกรายรับรายจ่าย")
+st.write(f"👤 คุณ: {user.email}")
 
-elif menu == "ค้นหา":
-    st.subheader("🔍 ค้นหา")
-    kw = st.text_input("ค้นหา")
-    if kw:
-        res = df[df['item'].str.contains(kw, case=False) | df['note'].str.contains(kw, case=False, na=False)]
-        st.dataframe(res if not res.empty else "ไม่พบ", use_container_width=True, hide_index=True)
+if st.button("ออกจากระบบ"):
+    del st.session_state.user
+    st.rerun()
 
-elif menu == "ลบรายการ":
-    st.subheader("🗑️ ลบรายการ")
-    if df.empty:
-        st.info("ไม่มีรายการ")
-    else:
-        sel = st.selectbox("เลือกรายการ", [f"{r['id']} | {r['date']} | {r['item']} | {r['amount']} บาท" for _, r in df.iterrows()])
-        del_id = int(sel.split("|")[0].strip())
-        if st.button("ยืนยันลบ", type="primary"):
-            delete_transaction(del_id)
-            st.success("✅ ลบสำเร็จ")
-            st.rerun()
+st.divider()
 
-elif menu == "ส่งออกข้อมูล":
-    st.subheader("📤 ส่งออก")
-    if not df.empty:
-        csv = df.to_csv(index=False).encode('utf-8-sig')
-        st.download_button("ดาวน์โหลด CSV", csv, "บันทึกรายรับรายจ่าย.csv", "text/csv")
-  
+# ฟอร์มบันทึก
+with st.form("บันทึก", clear_on_submit=True):
+    col1, col2 = st.columns(2)
+    with col1:
+        วันที่ = st.date_input("วันที่")
+        รายการ = st.text_input("รายการ")
+    with col2:
+        ประเภท = st.selectbox("ประเภท", ["รายรับ", "รายจ่าย"])
+        จำนวนเงิน = st.number_input("จำนวนเงิน", min_value=0.0, step=1.0)
+    
+    if st.form_submit_button("บันทึก", type="primary"):
+        supabase.table("entries").insert({
+            "user_id": user.id,
+            "date": วันที่.isoformat(),
+            "title": รายการ,
+            "type": ประเภท,
+            "amount": จำนวนเงิน
+        }).execute()
+        st.success("✅ บันทึกสำเร็จ!")
+        st.rerun()
+
+st.divider()
+
+# แสดงข้อมูลเฉพาะของคนนี้
+res = supabase.table("entries").select("*").eq("user_id", user.id).order("date", desc=True).execute()
+
+if res.data:
+    df = pd.DataFrame(res.data)
+    df = df[["date", "title", "type", "amount"]]
+    df.columns = ["วันที่", "รายการ", "ประเภท", "จำนวนเงิน"]
+    
+    รวมรับ = df[df["ประเภท"] == "รายรับ"]["จำนวนเงิน"].sum()
+    รวมจ่าย = df[df["ประเภท"] == "รายจ่าย"]["จำนวนเงิน"].sum()
+    คงเหลือ = รวมรับ - รวมจ่าย
+    
+    col1, col2, col3 = st.columns(3)
+    col1.metric("รวมรายรับ", f"{รวมรับ:,.2f} บาท")
+    col2.metric("รวมรายจ่าย", f"{รวมจ่าย:,.2f} บาท")
+    col3.metric("คงเหลือ", f"{คงเหลือ:,.2f} บาท")
+    
+    st.dataframe(df, use_container_width=True, hide_index=True)
+else:
+    st.info("📋 ยังไม่มีข้อมูล เริ่มบันทึกกันเลย!")
+                              
