@@ -3,7 +3,7 @@ import pandas as pd
 from supabase import create_client, Client
 from datetime import datetime
 
-# ล้างค่าเก่า
+# ล้างค่าเก่าทั้งหมด
 for key in list(st.session_state.keys()):
     del st.session_state[key]
 
@@ -68,21 +68,16 @@ if not user:
     with tab1:
         st.subheader("เข้าสู่ระบบ")
         
-        # เรียกใช้โดยตรง ไม่ผ่านตัวกลาง — แบบที่เคยใช้ได้ตอนแรก
-        email_input = st.text_input("อีเมล", key="login_email")
-        pass_input = st.text_input("รหัสผ่าน", type="password", key="login_password")
+        # ✅ แบบเดิมที่ใช้ได้ — เรียกใช้ตรงๆ ไม่ผ่านตัวกลาง
+        email = st.text_input("อีเมล", key="login_email")
+        password = st.text_input("รหัสผ่าน", type="password", key="login_password")
         
-        # ตัดช่องว่างเองตอนกดเข้า
-        if email_input:
-            e = email_input.strip()
-        else:
-            e = ""
-        if pass_input:
-            p = pass_input.strip()
-        else:
-            p = ""
+        # ตัดช่องว่าง
+        e = email.strip() if email else ""
+        p = password.strip() if password else ""
         
-        st.write(f"📋 ตรวจสอบ: อีเมล=`{e}` | รหัส={len(p)} ตัว")
+        # ✅ แสดงค่าถูกต้อง ไม่มีเครื่องหมายเกิน
+        st.write(f"📋 ตรวจสอบ: อีเมล={e} | รหัส={len(p)} ตัว")
         
         if st.button("เข้าสู่ระบบ", type="primary", use_container_width=True):
             if not e:
@@ -140,7 +135,7 @@ if not user:
                     st.error(f"❌ {str(ex)}")
     st.stop()
 
-# ========== หน้าหลัก เหมือนเดิม ==========
+# ========== หน้าหลัก เหมือนเดิมเป๊ะๆ ==========
 st.markdown(f"""
 <div class="card">
     <h2 style="margin:0;">👋 ยินดีต้อนรับ</h2>
@@ -259,4 +254,4 @@ elif menu == "จัดการบัญชี":
         <p style="color:green; font-weight:bold;">🔒 ปลอดภัย — ข้อมูลคนเดียว</p>
     </div>
     """, unsafe_allow_html=True)
-                
+                                           
