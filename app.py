@@ -3,7 +3,7 @@ import pandas as pd
 from supabase import create_client, Client
 from datetime import datetime
 
-# ล้างค่าเก่าทิ้ง
+# ล้างค่าทั้งหมด
 for key in list(st.session_state.keys()):
     del st.session_state[key]
 
@@ -67,13 +67,20 @@ if not user:
     
     with tab1:
         st.subheader("เข้าสู่ระบบ")
-        # ใช้ตัวแปรรับค่าโดยตรง ไม่ผ่านตัวแปรอื่น
-        login_email = st.text_input("อีเมล", key="login_email_input")
-        login_password = st.text_input("รหัสผ่าน", type="password", key="login_password_input")
         
-        # ตรวจสอบค่าจริง
-        e = login_email.strip() if login_email else ""
-        p = login_password.strip() if login_password else ""
+        # เก็บค่าลง session โดยตรง
+        if "email_val" not in st.session_state:
+            st.session_state.email_val = ""
+        if "pass_val" not in st.session_state:
+            st.session_state.pass_val = ""
+        
+        # ไม่ใช้ type=password ชั่วคราว เพื่อให้อ่านค่าได้ชัวร์
+        st.session_state.email_val = st.text_input("อีเมล", value=st.session_state.email_val, key="email_input")
+        st.session_state.pass_val = st.text_input("รหัสผ่าน", value=st.session_state.pass_val, key="pass_input")
+        
+        # ตรวจสอบค่า
+        e = st.session_state.email_val.strip()
+        p = st.session_state.pass_val.strip()
         st.write(f"📋 ตรวจสอบ: อีเมล={e} | รหัส={len(p)} ตัว")
         
         if st.button("เข้าสู่ระบบ", type="primary", use_container_width=True):
@@ -85,7 +92,7 @@ if not user:
                 try:
                     supabase.auth.sign_out()
                     res = supabase.auth.sign_in_with_password({"email": e, "password": p})
-                    st.success("✅ เข้าสู่ระบบสำเร็จ! กำลังโหลด...")
+                    st.success("✅ เข้าสู่ระบบสำเร็จ!")
                     st.rerun()
                 except Exception as ex:
                     err = str(ex).lower()
@@ -100,11 +107,16 @@ if not user:
     
     with tab2:
         st.subheader("ลงทะเบียน")
-        reg_email = st.text_input("อีเมล", key="reg_email_input")
-        reg_pass = st.text_input("รหัสผ่าน (6 ตัวขึ้นไป)", type="password", key="reg_pass_input")
+        if "reg_email" not in st.session_state:
+            st.session_state.reg_email = ""
+        if "reg_pass" not in st.session_state:
+            st.session_state.reg_pass = ""
+        st.session_state.reg_email = st.text_input("อีเมล", key="reg_email_in")
+        st.session_state.reg_pass = st.text_input("รหัสผ่าน (6 ตัวขึ้นไป)", key="reg_pass_in")
+        
         if st.button("สร้างบัญชี", type="primary", use_container_width=True):
-            re = reg_email.strip()
-            rp = reg_pass.strip()
+            re = st.session_state.reg_email.strip()
+            rp = st.session_state.reg_pass.strip()
             if not re or not rp:
                 st.error("กรอกข้อมูลให้ครบ")
             elif len(rp) < 6:
@@ -118,9 +130,12 @@ if not user:
     
     with tab3:
         st.subheader("ลืมรหัสผ่าน")
-        reset_email = st.text_input("อีเมลที่ใช้สมัคร", key="reset_email_input")
+        if "reset_email" not in st.session_state:
+            st.session_state.reset_email = ""
+        st.session_state.reset_email = st.text_input("อีเมลที่ใช้สมัคร", key="reset_email_in")
+        
         if st.button("ส่งลิงก์ตั้งรหัสใหม่", type="primary", use_container_width=True):
-            re = reset_email.strip()
+            re = st.session_state.reset_email.strip()
             if not re:
                 st.error("กรอกอีเมล")
             else:
@@ -250,3 +265,4 @@ elif menu == "จัดการบัญชี":
         <p style="color:green; font-weight:bold;">🔒 ปลอดภัย — ข้อมูลคนเดียว</p>
     </div>
     """, unsafe_allow_html=True)
+                     
