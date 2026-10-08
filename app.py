@@ -271,6 +271,18 @@ elif menu == "จัดการบัญชี":
     st.info(f"อีเมล: {user.email}\nรหัสผู้ใช้: {user.id}")
     st.divider()
     st.warning("พื้นที่นี้ยังไม่มีการทำงานเพิ่มเติม")
+n("ยืนยันการลบ", type="primary", use_container_width=True):
+                    supabase.table("entries").delete().eq("id", row["id"]).execute()
+                    st.session_state.show_success = "ลบรายการสำเร็จ"
+                    del st.session_state.del_conf
+                    st.rerun()
+
+# ---------- 6. จัดการบัญชี ----------
+elif menu == "จัดการบัญชี":
+    st.subheader("ข้อมูลบัญชี")
+    st.info(f"อีเมล: {user.email}\nรหัสผู้ใช้: {user.id}")
+    st.divider()
+    st.warning("พื้นที่นี้ยังไม่มีการทำงานเพิ่มเติม")
                 edit_title = st.text_input("ชื่อรายการ", value=row["title"])
                 edit_amount = st.number_input("จำนวนเงิน", min_value=0.0, value=float(row["amount"]))
 
