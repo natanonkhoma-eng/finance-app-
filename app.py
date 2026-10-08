@@ -3,10 +3,7 @@ import pandas as pd
 from supabase import create_client, Client
 from datetime import datetime
 
-# ล้างค่าค้างทั้งหมด
-for key in list(st.session_state.keys()):
-    del st.session_state[key]
-
+# ตั้งค่าหน้าแอป
 st.set_page_config(
     page_title="บันทึกรายรับ-รายจ่าย",
     page_icon="💰",
@@ -32,7 +29,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-@st.cache_resource(show_spinner=False)
+# เชื่อมต่อฐานข้อมูล
+@st.cache_resource
 def init_supabase():
     url = st.secrets.get("SUPABASE_URL", "")
     key = st.secrets.get("SUPABASE_KEY", "")
@@ -42,7 +40,7 @@ def init_supabase():
 
 supabase = init_supabase()
 if not supabase:
-    st.error("ตั้งค่า Secrets ไม่ครบ")
+    st.error("❌ ตั้งค่า Secrets ไม่ครบ")
     st.stop()
 
 def get_user():
@@ -68,15 +66,28 @@ if not user:
     with tab1:
         st.subheader("เข้าสู่ระบบ")
         
-        # ✅ เก็บค่าลงตัวแปรโดยตรงทันที ไม่ทับซ้อน
-        email = st.text_input("อีเมล", key="login_email")
-        password = st.text_input("รหัสผ่าน", type="password", key="login_password")
+        # ✅ แก้ตรงนี้: ใช้ session_state คุมค่าโดยตรง ไม่ให้หาย
+        if "login_email" not in st.session_state:
+            st.session_state.login_email = ""
+        if "login_pass" not in st.session_state:
+            st.session_state.login_pass = ""
         
-        # ✅ อ่านค่าจากตัวแปรโดยตรง ไม่ใช่จากการประมวลผลซ้ำ
-        e = email.strip()
-        p = password.strip()
+        st.session_state.login_email = st.text_input(
+            "อีเมล", 
+            value=st.session_state.login_email,
+            key="email_input_box"
+        )
+        st.session_state.login_pass = st.text_input(
+            "รหัสผ่าน", 
+            type="password",
+            value=st.session_state.login_pass,
+            key="pass_input_box"
+        )
         
-        st.write(f"📋 ตรวจสอบ: อีเมล=`{e}` | รหัส={len(p)} ตัว")
+        e = st.session_state.login_email.strip()
+        p = st.session_state.login_pass.strip()
+        
+        st.write(f"📋 ตรวจสอบ: อีเมล={e} | รหัส={len(p)} ตัว")
         
         if st.button("เข้าสู่ระบบ", type="primary", use_container_width=True):
             if not e:
@@ -85,9 +96,8 @@ if not user:
                 st.error("❌ กรอกรหัสผ่าน")
             else:
                 try:
-                    supabase.auth.sign_out()
                     res = supabase.auth.sign_in_with_password({"email": e, "password": p})
-                    st.success("✅ เข้าสู่ระบบสำเร็จ! กำลังโหลด...")
+                    st.success("✅ เข้าสู่ระบบสำเร็จ!")
                     st.rerun()
                 except Exception as ex:
                     err = str(ex).lower()
@@ -102,12 +112,17 @@ if not user:
     
     with tab2:
         st.subheader("ลงทะเบียน")
-        reg_email = st.text_input("อีเมล", key="reg_email")
-        reg_pass = st.text_input("รหัสผ่าน (6 ตัวขึ้นไป)", type="password", key="reg_pass")
+        if "reg_email" not in st.session_state:
+            st.session_state.reg_email = ""
+        if "reg_pass" not in st.session_state:
+            st.session_state.reg_pass = ""
+        
+        st.session_state.reg_email = st.text_input("อีเมล", key="reg_email_box")
+        st.session_state.reg_pass = st.text_input("รหัสผ่าน (6 ตัวขึ้นไป)", type="password", key="reg_pass_box")
         
         if st.button("สร้างบัญชี", type="primary", use_container_width=True):
-            re = reg_email.strip()
-            rp = reg_pass.strip()
+            re = st.session_state.reg_email.strip()
+            rp = st.session_state.reg_pass.strip()
             if not re or not rp:
                 st.error("กรอกข้อมูลให้ครบ")
             elif len(rp) < 6:
@@ -121,9 +136,12 @@ if not user:
     
     with tab3:
         st.subheader("ลืมรหัสผ่าน")
-        reset_email = st.text_input("อีเมลที่ใช้สมัคร", key="reset_email")
+        if "reset_email" not in st.session_state:
+            st.session_state.reset_email = ""
+        st.session_state.reset_email = st.text_input("อีเมลที่ใช้สมัคร", key="reset_email_box")
+        
         if st.button("ส่งลิงก์ตั้งรหัสใหม่", type="primary", use_container_width=True):
-            re = reset_email.strip()
+            re = st.session_state.reset_email.strip()
             if not re:
                 st.error("กรอกอีเมล")
             else:
