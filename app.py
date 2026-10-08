@@ -17,13 +17,13 @@ st.set_page_config(
 st.markdown("""
 <style>
     .stApp { 
-        background: #d4f8d4 !important;  /* เขียวอ่อนตามที่ต้องการ */
+        background: #d4f8d4 !important;  /* พื้นหลังเขียวอ่อน */
     }
     .block-container { padding: 1.5rem 1rem 2rem; }
     
-    /* ข้อความทั้งหมดสีขาว */
+    /* ข้อความทั้งหมดสีดำเหมือนเดิม */
     p, label, div, span, h1, h2, h3, h4, h5, h6 { 
-        color: #ffffff !important; 
+        color: #000000 !important; 
     }
     
     /* กล่องกรอกข้อมูล */
@@ -65,20 +65,15 @@ st.markdown("""
     
     label { 
         font-weight: 600; 
-        color: #ffffff !important; 
+        color: #000000 !important; 
     }
     
     .card {
-        background: rgba(255,255,255,0.2); 
+        background: rgba(255,255,255,0.7); 
         padding: 1.5rem; 
         border-radius: 20px;
         border: 2px solid #90ee90; 
         margin-bottom: 2rem;
-    }
-    
-    /* ข้อความแจ้งเตือน */
-    div[data-testid="stAlert"] {
-        color: #ffffff !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -122,11 +117,16 @@ if not user:
         password = st.text_input("รหัสผ่าน", type="password", key="login_pass")
         
         if st.button("เข้าสู่ระบบ", type="primary", use_container_width=True):
-            e = email.strip()
-            p = password.strip()
+            e = email.strip() if email else ""
+            p = password.strip() if password else ""
             
-            if not e or not p:
-                st.error("❌ กรอกอีเมลและรหัสผ่านให้ครบ")
+            # บอกชัดเจนว่าผิดตรงไหน
+            if not e and not p:
+                st.error("❌ ผิดทั้งคู่ — กรอกอีเมล และ รหัสผ่าน")
+            elif not e:
+                st.error("❌ ผิด — ยังไม่ได้กรอกอีเมล")
+            elif not p:
+                st.error("❌ ผิด — ยังไม่ได้กรอกรหัสผ่าน")
             else:
                 try:
                     supabase.auth.sign_out()
@@ -134,55 +134,71 @@ if not user:
                     st.success("✅ เข้าสู่ระบบสำเร็จ!")
                     st.rerun()
                 except Exception as ex:
-                    err = str(ex).lower()
-                    if "email not confirmed" in err:
-                        st.error("❌ ยังไม่ได้ยืนยันอีเมล — ตรวจสอบกล่องข้อความในอีเมล")
-                    elif "invalid" in err or "credentials" in err:
-                        st.error("❌ อีเมลหรือรหัสผ่านไม่ถูกต้อง")
+                    err_text = str(ex).lower()
+                    # บอกสาเหตุที่แท้จริง
+                    if "email not confirmed" in err_text:
+                        st.error("❌ เข้าไม่ได้ เพราะ: ยังไม่ยืนยันอีเมล → ไปเปิดอีเมล กดลิงก์ที่ส่งไป")
+                    elif "invalid login credentials" in err_text or "credentials" in err_text:
+                        st.error("❌ เข้าไม่ได้ เพราะ: อีเมลหรือรหัสผ่านไม่ถูกต้อง → เช็คตัวสะกด ดูตัวใหญ่-เล็ก อย่ามีช่องว่างติด")
+                    elif "too many requests" in err_text or "rate limit" in err_text:
+                        st.error("❌ เข้าไม่ได้ เพราะ: กดผิดบ่อยเกินไป → รอ 15-30 นาทีแล้วลองใหม่")
+                    elif "email not found" in err_text:
+                        st.error("❌ เข้าไม่ได้ เพราะ: ไม่มีบัญชีนี้ → กดแท็บ 'ลงทะเบียน' สมัครก่อน")
                     else:
-                        st.error(f"❌ เข้าไม่ได้: {str(ex)}")
+                        st.error(f"❌ เข้าไม่ได้ เพราะ: {str(ex)}")
     
     with tab2:
         st.subheader("ลงทะเบียน")
         reg_email = st.text_input("อีเมล", key="reg_email")
-        reg_pass = st.text_input("รหัสผ่าน", type="password", key="reg_pass")
+        reg_pass = st.text_input("ตั้งรหัสผ่าน (อย่างน้อย 6 ตัว)", type="password", key="reg_pass")
         
         if st.button("สร้างบัญชี", type="primary", use_container_width=True):
-            re = reg_email.strip()
-            rp = reg_pass.strip()
-            if not re or not rp:
-                st.error("กรอกข้อมูลให้ครบ")
+            re = reg_email.strip() if reg_email else ""
+            rp = reg_pass.strip() if reg_pass else ""
+            
+            if not re and not rp:
+                st.error("❌ กรอกอีเมล และ ตั้งรหัสผ่าน")
+            elif not re:
+                st.error("❌ ยังไม่ได้กรอกอีเมล")
+            elif not rp:
+                st.error("❌ ยังไม่ได้ตั้งรหัสผ่าน")
             elif len(rp) < 6:
-                st.error("รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร")
+                st.error(f"❌ รหัสผ่านสั้นไป — ต้อง 6 ตัวขึ้นไป (ตอนนี้มี {len(rp)} ตัว)")
             else:
                 try:
                     supabase.auth.sign_up({"email": re, "password": rp})
-                    st.success("✅ สมัครสำเร็จ! ตรวจสอบอีเมลเพื่อยืนยัน")
+                    st.success("✅ สมัครสำเร็จ! → ไปเปิดอีเมล กดลิงก์ยืนยัน กลับมาเข้าสู่ระบบ")
                 except Exception as ex:
-                    st.error(f"❌ ไม่สำเร็จ: {str(ex)}")
+                    err_text = str(ex).lower()
+                    if "email already registered" in err_text or "already exists" in err_text:
+                        st.error("❌ มีบัญชีนี้แล้ว → ไปที่แท็บ 'เข้าสู่ระบบ' หรือ 'ลืมรหัสผ่าน'")
+                    elif "invalid email" in err_text:
+                        st.error("❌ รูปแบบอีเมลไม่ถูกต้อง → เช็คให้มี @ และ ชื่อเว็บต่อท้าย")
+                    else:
+                        st.error(f"❌ ไม่สำเร็จ: {str(ex)}")
     
     with tab3:
         st.subheader("ลืมรหัสผ่าน")
         reset_email = st.text_input("กรอกอีเมลที่ใช้สมัคร", key="reset_email")
-        if st.button("ส่งลิงก์ตั้งค่ารหัสผ่านใหม่", type="primary", use_container_width=True):
-            re = reset_email.strip()
+        if st.button("ส่งลิงก์ตั้งรหัสผ่านใหม่", type="primary", use_container_width=True):
+            re = reset_email.strip() if reset_email else ""
             if not re:
-                st.error("❌ กรอกอีเมลของคุณ")
+                st.error("❌ กรอกอีเมลที่ใช้สมัคร")
             else:
                 try:
                     supabase.auth.reset_password_email(re)
-                    st.success("✅ ส่งลิงก์ไปยังอีเมลแล้ว! ตรวจสอบกล่องข้อความ")
+                    st.success("✅ ส่งแล้ว! → ไปเปิดอีเมล กดลิงก์ ตั้งรหัสใหม่ แล้วกลับมาเข้า")
                 except Exception as ex:
-                    st.error(f"❌ ไม่สามารถส่งได้: {str(ex)}")
+                    st.error(f"❌ ส่งไม่ได้: {str(ex)}")
     st.stop()
 
-# ========== หน้าหลัก — ระบบเดิมครบถ้วน ==========
+# ========== หน้าหลัก — ครบเหมือนเดิม ==========
 st.markdown(f"""
 <div class="card">
     <h2 style="margin:0;">👋 ยินดีต้อนรับ</h2>
     <p>📧 {user.email}</p>
     <p>🆔 {user.id}</p>
-    <p style="font-weight:bold;">✅ ข้อมูลของคุณแยกอิสระ — ปลอดภัย</p>
+    <p style="font-weight:bold;">✅ ข้อมูลของคุณคนเดียว — ไม่มีใครเห็น</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -206,8 +222,10 @@ if menu == "เพิ่มรายการ":
         n = st.text_input("ชื่อรายการ", key="add_title")
         a = st.number_input("จำนวนเงิน", min_value=0.0, format="%.2f")
         if st.form_submit_button("บันทึก", type="primary"):
-            if not n or a <= 0: 
-                st.error("กรอกข้อมูลให้ครบ")
+            if not n:
+                st.error("❌ ยังไม่ได้กรอกชื่อรายการ")
+            elif a <= 0:
+                st.error("❌ จำนวนเงินต้องมากกว่า 0")
             else:
                 supabase.table("entries").insert({
                     "user_id": user.id, 
@@ -240,14 +258,14 @@ elif menu == "ดูรายการทั้งหมด":
         st.info("📭 ยังไม่มีรายการของคุณ")
 
 elif menu == "ค้นหา":
-    kw = st.text_input("ค้นหารายการ", key="search_keyword")
+    kw = st.text_input("พิมพ์เพื่อค้นหา", key="search_keyword")
     if kw:
         res = supabase.table("entries").select("*").execute()
         if res.data:
             df = pd.DataFrame(res.data)
             df = df[df["title"].str.contains(kw, case=False, na=False)]
             if df.empty: 
-                st.info("🔍 ไม่พบรายการ")
+                st.info("🔍 ไม่พบรายการที่ตรงกับคำค้น")
             else: 
                 st.dataframe(df, use_container_width=True, hide_index=True)
 
@@ -259,7 +277,7 @@ elif menu == "ส่งออกข้อมูล":
         st.download_button("📥 ดาวน์โหลดไฟล์ CSV", data=csv, 
                            file_name="รายรับรายจ่าย.csv", type="primary")
     else:
-        st.info("ไม่มีข้อมูล")
+        st.info("ไม่มีข้อมูลที่จะส่งออก")
 
 elif menu == "แก้ไขและลบรายการ":
     res = supabase.table("entries").select("*").order("date", desc=True).execute()
@@ -267,7 +285,7 @@ elif menu == "แก้ไขและลบรายการ":
         st.info("ไม่มีรายการ")
         st.stop()
     df = pd.DataFrame(res.data)
-    sel = st.selectbox("เลือกรายการ", ["-- เลือก --"] + list(df["title"]), key="select_edit")
+    sel = st.selectbox("เลือกรายการที่ต้องการ", ["-- เลือก --"] + list(df["title"]), key="select_edit")
     
     if sel != "-- เลือก --":
         row = df[df["title"]==sel].iloc[0]
@@ -296,7 +314,7 @@ elif menu == "แก้ไขและลบรายการ":
             if "del_confirm" not in st.session_state or st.session_state.del_confirm != row["id"]:
                 if st.button("ลบรายการนี้", type="secondary", key=f"del_btn_{row['id']}"):
                     st.session_state.del_confirm = row["id"]
-                    st.warning("⚠️ กดอีกครั้งเพื่อยืนยันการลบ")
+                    st.warning("⚠️ กดอีกครั้งเพื่อยืนยันการลบ — กู้คืนไม่ได้")
             else:
                 if st.button("ยืนยันการลบ", type="primary", key=f"del_ok_{row['id']}"):
                     supabase.table("entries").delete().eq("id", row["id"]).execute()
@@ -310,7 +328,7 @@ elif menu == "จัดการบัญชี":
     <div class="card">
         <p><strong>📧 อีเมล:</strong> {user.email}</p>
         <p><strong>🆔 รหัสผู้ใช้:</strong> {user.id}</p>
-        <p style="font-weight:bold;">🔒 ปลอดภัย — ข้อมูลแยกกัน</p>
+        <p style="font-weight:bold;">🔒 ปลอดภัย — ข้อมูลคนเดียว</p>
     </div>
     """, unsafe_allow_html=True)
             
