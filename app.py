@@ -1,4 +1,4 @@
-import streamlit as st
+◌ุimport streamlit as st
 import pandas as pd
 from supabase import create_client, Client
 from datetime import datetime
@@ -59,9 +59,9 @@ if "user" not in st.session_state:
 if "user" not in st.session_state:
     st.title("บันทึกรายรับรายจ่าย")
     st.divider()
-    
+
     tab1, tab2 = st.tabs(["เข้าสู่ระบบ", "ลงทะเบียน"])
-    
+
     with tab1:
         st.subheader("เข้าสู่ระบบบัญชีของคุณ")
         email = st.text_input("อีเมล", key="login_email")
@@ -75,7 +75,7 @@ if "user" not in st.session_state:
                 st.rerun()
             except Exception:
                 st.error("อีเมลหรือรหัสผ่านไม่ถูกต้อง")
-    
+
     with tab2:
         st.subheader("สร้างบัญชีใหม่")
         email2 = st.text_input("อีเมล", key="reg_email")
@@ -133,18 +133,18 @@ if st.sidebar.button("ออกจากระบบ", type="secondary", use_con
 if menu == "เพิ่มรายการ":
     st.subheader("เพิ่มรายการใหม่")
     st.write("กรอกข้อมูลรายรับ-รายจ่ายด้านล่าง")
-    
+
     with st.form("add_form"):
         col1, col2 = st.columns(2)
         with col1:
             date = st.date_input("วันที่", value=datetime.today())
         with col2:
             typ = st.radio("ประเภท", ["รายรับ", "รายจ่าย"], horizontal=True)
-        
+
         item = st.text_input("ชื่อรายการ")
         amount = st.number_input("จำนวนเงิน บาท", min_value=0.0, step=1.0)
         note = st.text_input("หมายเหตุ ถ้ามี")
-        
+
         if st.form_submit_button("บันทึกข้อมูล", type="primary", use_container_width=True):
             if not item or amount <= 0:
                 st.error("กรอกชื่อรายการและจำนวนเงินให้ครบถ้วน")
@@ -164,24 +164,24 @@ if menu == "เพิ่มรายการ":
 # ==================================================
 elif menu == "ดูรายการทั้งหมด":
     st.subheader("สรุปข้อมูลทั้งหมด")
-    
+
     res = supabase.table("entries").select("*").eq("user_id", user.id).order("date", desc=True).execute()
-    
+
     if res.data:
         df = pd.DataFrame(res.data)
         df["date"] = pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d")
         df = df[["date", "title", "type", "amount"]]
         df.columns = ["วันที่", "รายการ", "ประเภท", "จำนวนเงิน"]
-        
+
         total_income = df[df["ประเภท"] == "รายรับ"]["จำนวนเงิน"].sum()
         total_expense = df[df["ประเภท"] == "รายจ่าย"]["จำนวนเงิน"].sum()
         balance = total_income - total_expense
-        
+
         col1, col2, col3 = st.columns(3)
         col1.metric("รวมรายรับ", f"{total_income:,.2f} บาท")
         col2.metric("รวมรายจ่าย", f"{total_expense:,.2f} บาท")
         col3.metric("คงเหลือสุทธิ", f"{balance:,.2f} บาท")
-        
+
         st.divider()
         st.dataframe(df, use_container_width=True, hide_index=True)
     else:
@@ -193,7 +193,7 @@ elif menu == "ดูรายการทั้งหมด":
 elif menu == "ค้นหา":
     st.subheader("ค้นหารายการ")
     kw = st.text_input("พิมพ์คำที่ต้องการค้นหา")
-    
+
     if kw:
         res = supabase.table("entries").select("*").eq("user_id", user.id).execute()
         if res.data:
@@ -218,18 +218,18 @@ elif menu == "ค้นหา":
 # ==================================================
 elif menu == "ส่งออกข้อมูล":
     st.subheader("ส่งออกข้อมูลสำรอง")
-    
+
     res = supabase.table("entries").select("*").eq("user_id", user.id).order("date", desc=True).execute()
-    
+
     if res.data:
         df = pd.DataFrame(res.data)
         df["date"] = pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d")
         df_export = df[["date", "title", "type", "amount"]]
         df_export.columns = ["วันที่", "รายการ", "ประเภท", "จำนวนเงิน"]
-        
+
         st.dataframe(df_export, use_container_width=True, hide_index=True)
         st.divider()
-        
+
         col1, col2 = st.columns(2)
         csv = df_export.to_csv(index=False, encoding="utf-8-sig")
         col1.download_button(
@@ -239,7 +239,7 @@ elif menu == "ส่งออกข้อมูล":
             mime="text/csv",
             use_container_width=True
         )
-        
+
         json_data = df_export.to_json(orient="records", force_ascii=False, indent=2)
         col2.download_button(
             label="ดาวน์โหลดไฟล์ JSON",
@@ -248,7 +248,7 @@ elif menu == "ส่งออกข้อมูล":
             mime="application/json",
             use_container_width=True
         )
-        
+
         st.success(f"พบรายการทั้งหมด {len(df_export)} รายการ")
     else:
         st.info("ยังไม่มีข้อมูล ไม่มีอะไรส่งออกครับ")
@@ -258,31 +258,79 @@ elif menu == "ส่งออกข้อมูล":
 # ==================================================
 elif menu == "แก้ไขและลบรายการ":
     st.subheader("จัดการรายการ")
-    
+
     res = supabase.table("entries").select("*").eq("user_id", user.id).order("date", desc=True).execute()
-    
+
     if not res.data:
         st.info("ยังไม่มีรายการที่จะแก้ไข")
         st.stop()
-    
+
     df = pd.DataFrame(res.data)
     df["display_date"] = pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d")
     df["label"] = df["display_date"] + " | " + df["type"] + " | " + df["title"] + " | " + df["amount"].astype(str) + " บาท"
-    
+
     selected_label = st.selectbox("เลือกรายการที่ต้องการ", ["-- เลือก --"] + list(df["label"]))
-    
+
     if selected_label != "-- เลือก --":
         row = df[df["label"] == selected_label].iloc[0]
         st.divider()
         st.subheader(f"รายการ: {row['title']}")
-        
+
         col_edit, col_del = st.columns(2)
-        
+
         with col_edit:
             st.subheader("แก้ไขข้อมูล")
             with st.form("edit_form"):
                 edit_date = st.date_input("วันที่", value=pd.to_datetime(row["date"]))
-                edit_type = st.radio("ประเภท", ["รายรับ", "รายจ่าย"], 
+                edit_type = st.radio("ประเภท", ["รายรับ", "รายจ่าย"],
+                                     index=0 if row["type"] == "รายรับ" else 1, horizontal=True)
+                edit_title = st.text_input("ชื่อรายการ", value=row["title"])
+                edit_amount = st.number_input("จำนวนเงิน", min_value=0.0, value=float(row["amount"]))
+
+                if st.form_submit_button("บันทึกการแก้ไข", type="primary", use_container_width=True):
+                    supabase.table("entries").update({
+                        "date": edit_date.isoformat(),
+                        "type": edit_type,
+                        "title": edit_title,
+                        "amount": edit_amount
+                    }).eq("id", row["id"]).execute()
+                    st.session_state.show_success = "แก้ไขข้อมูลเรียบร้อยแล้ว"
+                    st.rerun()
+
+        with col_del:
+            st.subheader("ลบรายการ")
+            if "del_conf" not in st.session_state or st.session_state.del_conf != row["id"]:
+                if st.button("ลบรายการนี้", type="secondary", use_container_width=True):
+                    st.session_state.del_conf = row["id"]
+                    st.warning("กดอีกครั้งเพื่อยืนยันลบ ข้อมูลจะกู้คืนไม่ได้")
+            else:
+                if st.button("ยืนยันการลบ", type="primary", use_container_width=True):
+                    supabase.table("entries").delete().eq("id", row["id"]).execute()
+                    st.session_state.show_success = "ลบรายการสำเร็จ"
+                    del st.session_state.del_conf
+                    st.rerun()
+
+# ==================================================
+# 6 จัดการบัญชี
+# ==================================================
+elif menu == "จัดการบัญชี":
+    st.subheader("ข้อมูลบัญชี")
+    st.info(f"อีเมล: {user.email}  \nรหัสผู้ใช้: {user.id}")
+
+    st.divider()
+    st.subheader("ล้างข้อมูลทั้งหมด")
+
+    if "clear_all_conf" not in st.session_state or not st.session_state.clear_all_conf:
+        if st.button("ลบข้อมูลทั้งหมดของฉัน", type="secondary", use_container_width=True):
+            st.session_state.clear_all_conf = True
+            st.warning("กดอีกครั้งเพื่อยืนยัน ข้อมูลทั้งหมดจะหายไป")
+    else:
+        if st.button("ยืนยันลบทั้งหมด", type="primary", use_container_width=True):
+            supabase.table("entries").delete().eq("user_id", user.id).execute()
+            st.session_state.show_success = "ล้างข้อมูลทั้งหมดเรียบร้อย"
+            st.session_state.clear_all_conf = False
+            st.rerun()
+pe = st.radio("ประเภท", ["รายรับ", "รายจ่าย"], 
                                      index=0 if row["type"] == "รายรับ" else 1, horizontal=True)
                 edit_title = st.text_input("ชื่อรายการ", value=row["title"])
                 edit_amount = st.number_input("จำนวนเงิน", min_value=0.0, value=float(row["amount"]))
