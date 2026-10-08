@@ -3,18 +3,18 @@ import pandas as pd
 from supabase import create_client, Client
 from datetime import datetime
 
+# ========== ล้างข้อมูลเก่าทันทีทุกครั้งที่เปิดหน้า ==========
+# ล้าง session state ทิ้งก่อนทำอย่างอื่น ป้องกันข้อมูลค้าง
+for key in list(st.session_state.keys()):
+    del st.session_state[key]
+# ==========================================================
+
 st.set_page_config(
     page_title="บันทึกรายรับ-รายจ่าย",
     page_icon="💰",
     layout="wide",
     initial_sidebar_state="expanded"
 )
-
-# --- ล้างข้อมูลเมื่อออกจากระบบ ---
-if "_LOGOUT" in st.session_state and st.session_state._LOGOUT:
-    for k in list(st.session_state.keys()):
-        del st.session_state[k]
-    st.rerun()
 
 st.markdown("""
 <style>
@@ -62,7 +62,7 @@ if not supabase:
     st.error("ตั้งค่า Secrets ไม่ครบ")
     st.stop()
 
-# --- ตรวจสอบผู้ใช้จริงจาก Supabase ---
+# ========== ตรวจสอบผู้ใช้ใหม่ทุกครั้ง ==========
 def get_user():
     try:
         session = supabase.auth.get_session()
@@ -72,12 +72,19 @@ def get_user():
         pass
     return None
 
+# ล้าง session ทิ้งก่อนตรวจสอบ
 user = get_user()
 
-# --- ยังไม่เข้าสู่ระบบ ---
+# ========== ถ้าไม่มีผู้ใช้ แสดงหน้าเข้าสู่ระบบ ==========
 if not user:
+    # ล้าง auth ทิ้งอีกครั้ง เพื่อความสะอาด
+    try:
+        supabase.auth.sign_out()
+    except:
+        pass
+    
     st.title("💰 บันทึกรายรับ-รายจ่าย")
-    tab1, tab2 = st.tabs(["เข้าสู่ระบบ", "ลงทะเบียน"])
+    tab1, tab2 = st.tabs(["🔐 เข้าสู่ระบบ", "✨ ลงทะเบียน"])
     
     with tab1:
         st.subheader("เข้าสู่ระบบ")
@@ -88,10 +95,11 @@ if not user:
                 st.error("กรอกอีเมลและรหัสผ่าน")
             else:
                 try:
+                    # ล้างของเก่าก่อนเข้าใหม่เสมอ
                     supabase.auth.sign_out()
-                    supabase.auth.sign_in_with_password({"email": email, "password": password})
+                    res = supabase.auth.sign_in_with_password({"email": email, "password": password})
                     st.rerun()
-                except:
+                except Exception:
                     st.error("อีเมลหรือรหัสผ่านไม่ถูกต้อง")
     
     with tab2:
@@ -109,13 +117,13 @@ if not user:
                     st.error(f"ไม่สำเร็จ: {e}")
     st.stop()
 
-# --- หน้าหลัก ---
+# ========== มีผู้ใช้แล้ว แสดงหน้าหลัก ==========
 st.markdown(f"""
 <div class="card">
     <h2 style="margin:0;">👋 ยินดีต้อนรับ</h2>
     <p style="margin:0.5rem 0 0;">📧 {user.email}</p>
     <p style="margin:0.25rem 0 0; font-size:0.9rem; color:#666;">🆔 รหัสของฉัน: {user.id}</p>
-    <p style="margin:0.5rem 0 0; color:#008040; font-weight:600;">✅ RLS ทำงานแล้ว — ข้อมูลแยกกันแน่นอน</p>
+    <p style="margin:0.5rem 0 0; color:#008040; font-weight:600;">✅ ข้อมูลของคุณแยกอิสระ — ไม่มีของคนอื่นปน</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -128,19 +136,16 @@ menu = st.sidebar.radio("เมนู", [
     "จัดการบัญชี"
 ])
 
-# --- ออกจากระบบ ---
+# ========== ปุ่มออกจากระบบ ทำงานแน่นอน ==========
 if st.sidebar.button("🚪 ออกจากระบบ", type="secondary", use_container_width=True):
     try:
         supabase.auth.sign_out()
     except:
         pass
-    st.session_state._LOGOUT = True
+    # ล้างทั้งหมดแล้วรีเฟรช
     st.rerun()
 
-# ==================================================
-# ทุกจุดใช้ user.id ตรงกับ auth.uid() ของ Supabase
-# ==================================================
-
+# ========== เมนูต่างๆ ==========
 if menu == "เพิ่มรายการ":
     st.subheader("เพิ่มรายการใหม่")
     st.markdown("---")
@@ -157,7 +162,7 @@ if menu == "เพิ่มรายการ":
                 st.error("กรอกข้อมูลให้ครบถ้วน")
             else:
                 supabase.table("entries").insert({
-                    "user_id": user.id,  # ✅ ตรงกับ auth.uid()
+                    "user_id": user.id,
                     "date": date.isoformat(),
                     "title": title,
                     "type": typ,
@@ -170,7 +175,6 @@ elif menu == "ดูรายการทั้งหมด":
     st.subheader("รายการของฉัน")
     st.markdown("---")
     res = supabase.table("entries").select("*").order("date", desc=True).execute()
-    # 💡 ไม่ต้องใส่ .eq("user_id", user.id) ก็ได้ เพราะ RLS กรองให้แล้ว
     if res.data:
         df = pd.DataFrame(res.data)
         df["date"] = pd.to_datetime(df["date"]).dt.strftime("%d/%m/%Y")
@@ -204,7 +208,7 @@ elif menu == "ดูรายการทั้งหมด":
         st.markdown("<br>", unsafe_allow_html=True)
         st.dataframe(df[["date", "title", "type", "amount"]], use_container_width=True, hide_index=True)
     else:
-        st.info("📭 ยังไม่มีรายการของคุณ — RLS ป้องกันข้อมูลคนอื่น")
+        st.info("📭 ยังไม่มีรายการของคุณ")
 
 elif menu == "ค้นหา":
     st.subheader("ค้นหาในรายการของฉัน")
@@ -282,7 +286,7 @@ elif menu == "จัดการบัญชี":
     <div class="card">
         <p><strong>📧 อีเมล:</strong> {user.email}</p>
         <p><strong>🆔 รหัสผู้ใช้:</strong> {user.id}</p>
-        <p style="color:#008040; font-weight:600;">🔒 ปลอดภัย — RLS ทำงานที่ฐานข้อมูลโดยตรง</p>
+        <p style="color:#008040; font-weight:600;">🔒 ปลอดภัย — เปิดมาก็สะอาดเสมอ</p>
     </div>
     """, unsafe_allow_html=True)
-        
+                
