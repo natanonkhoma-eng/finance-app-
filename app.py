@@ -330,6 +330,52 @@ elif menu == "จัดการบัญชี":
             st.session_state.show_success = "ล้างข้อมูลทั้งหมดเรียบร้อย"
             st.session_state.clear_all_conf = False
             st.rerun()
+                edit_title = st.text_input("ชื่อรายการ", value=row["title"])
+                edit_amount = st.number_input("จำนวนเงิน", min_value=0.0, value=float(row["amount"]))
+
+                if st.form_submit_button("บันทึกการแก้ไข", type="primary", use_container_width=True):
+                    supabase.table("entries").update({
+                        "date": edit_date.isoformat(),
+                        "type": edit_type,
+                        "title": edit_title,
+                        "amount": edit_amount
+                    }).eq("id", row["id"]).execute()
+                    st.session_state.show_success = "แก้ไขข้อมูลเรียบร้อยแล้ว"
+                    st.rerun()
+
+        with col_del:
+            st.subheader("ลบรายการ")
+            if "del_conf" not in st.session_state or st.session_state.del_conf != row["id"]:
+                if st.button("ลบรายการนี้", type="secondary", use_container_width=True):
+                    st.session_state.del_conf = row["id"]
+                    st.warning("กดอีกครั้งเพื่อยืนยันลบ ข้อมูลจะกู้คืนไม่ได้")
+            else:
+                if st.button("ยืนยันการลบ", type="primary", use_container_width=True):
+                    supabase.table("entries").delete().eq("id", row["id"]).execute()
+                    st.session_state.show_success = "ลบรายการสำเร็จ"
+                    del st.session_state.del_conf
+                    st.rerun()
+
+# ==================================================
+# 6 จัดการบัญชี
+# ==================================================
+elif menu == "จัดการบัญชี":
+    st.subheader("ข้อมูลบัญชี")
+    st.info(f"อีเมล: {user.email}  \nรหัสผู้ใช้: {user.id}")
+
+    st.divider()
+    st.subheader("ล้างข้อมูลทั้งหมด")
+
+    if "clear_all_conf" not in st.session_state or not st.session_state.clear_all_conf:
+        if st.button("ลบข้อมูลทั้งหมดของฉัน", type="secondary", use_container_width=True):
+            st.session_state.clear_all_conf = True
+            st.warning("กดอีกครั้งเพื่อยืนยัน ข้อมูลทั้งหมดจะหายไป")
+    else:
+        if st.button("ยืนยันลบทั้งหมด", type="primary", use_container_width=True):
+            supabase.table("entries").delete().eq("user_id", user.id).execute()
+            st.session_state.show_success = "ล้างข้อมูลทั้งหมดเรียบร้อย"
+            st.session_state.clear_all_conf = False
+            st.rerun()
 )
                 edit_title = st.text_input("ชื่อรายการ", value=row["title"])
                 edit_amount = st.number_input("จำนวนเงิน", min_value=0.0, value=float(row["amount"]))
