@@ -77,16 +77,12 @@ if not user:
     
     with tab1:
         st.subheader("เข้าสู่ระบบ")
-        
-        # ========== จุดที่แก้ — ตรวจสอบค่าชัดเจน ==========
-        email = st.text_input("อีเมล")
-        password = st.text_input("รหัสผ่าน", type="password")
+        email = st.text_input("อีเมล", key="login_email")
+        password = st.text_input("รหัสผ่าน", type="password", key="login_pass")
         
         if st.button("เข้าสู่ระบบ", type="primary", use_container_width=True):
             e = email.strip() if email else ""
             p = password.strip() if password else ""
-            
-            st.write(f"📋 ค่าที่อ่านได้ — อีเมล: `{e}`, รหัส: `{len(p)} ตัวอักษร`") # แสดงค่าที่อ่านได้จริง
             
             if not e or not p:
                 st.error("❌ กรอกอีเมลและรหัสผ่าน")
@@ -101,8 +97,8 @@ if not user:
     
     with tab2:
         st.subheader("ลงทะเบียน")
-        reg_email = st.text_input("อีเมล")
-        reg_pass = st.text_input("รหัสผ่าน", type="password")
+        reg_email = st.text_input("อีเมล", key="reg_email")
+        reg_pass = st.text_input("รหัสผ่าน", type="password", key="reg_pass")
         
         if st.button("สร้างบัญชี", type="primary", use_container_width=True):
             re = reg_email.strip() if reg_email else ""
@@ -164,51 +160,71 @@ elif menu == "ดูรายการทั้งหมด":
         exp = df[df["type"]=="รายจ่าย"]["amount"].sum()
         bal = inc - exp
         c1,c2,c3 = st.columns(3)
-        with c1: st.info(f"รายรับรวม\n\n**+{inc:,.2f}**")
-        with c2: st.error(f"รายจ่ายรวม\n\n**-{exp:,.2f}**")
-        with c3: st.success(f"คงเหลือ\n\n**{bal:,.2f}**")
+        with c1: st.info(f"รายรับรวม\n\n**+{inc:,.2f} บาท**")
+        with c2: st.error(f"รายจ่ายรวม\n\n**-{exp:,.2f} บาท**")
+        with c3: st.success(f"คงเหลือ\n\n**{bal:,.2f} บาท**")
         st.dataframe(df, use_container_width=True, hide_index=True)
     else:
-        st.info("📭 ยังไม่มีรายการ")
+        st.info("📭 ยังไม่มีรายการของคุณ")
 
 elif menu == "ค้นหา":
-    kw = st.text_input("ค้นหา")
+    kw = st.text_input("ค้นหารายการ")
     if kw:
         res = supabase.table("entries").select("*").execute()
         if res.data:
             df = pd.DataFrame(res.data)
             df = df[df["title"].str.contains(kw, case=False, na=False)]
-            st.dataframe(df, use_container_width=True, hide_index=True)
+            if df.empty: st.info("ไม่พบ")
+            else: st.dataframe(df, use_container_width=True, hide_index=True)
 
 elif menu == "ส่งออกข้อมูล":
-    res = supabase.table("entries").select("*").execute()
+    res = supabase.table("entries").select("*").order("date", desc=True).execute()
     if res.data:
         df = pd.DataFrame(res.data)
-        st.download_button("ดาวน์โหลด CSV", df.to_csv(index=False).encode("utf-8"), "รายการ.csv")
+        csv = df.to_csv(index=False).encode("utf-8-sig")
+        st.download_button("📥 ดาวน์โหลด CSV", data=csv, file_name="รายรับรายจ่าย.csv", type="primary")
+    else:
+        st.info("ไม่มีข้อมูล")
 
 elif menu == "แก้ไขและลบรายการ":
     res = supabase.table("entries").select("*").order("date", desc=True).execute()
     if not res.data: st.info("ไม่มีรายการ"); st.stop()
     df = pd.DataFrame(res.data)
-    sel = st.selectbox("เลือก", ["-- เลือก --"] + list(df["title"]))
+    sel = st.selectbox("เลือกรายการ", ["-- เลือก --"] + list(df["title"]))
     if sel != "-- เลือก --":
         row = df[df["title"]==sel].iloc[0]
-        with st.form("edit"):
-            nd = st.date_input("วันที่", value=pd.to_datetime(row["date"]))
-            nt = st.radio("ประเภท", ["รายรับ","รายจ่าย"], 0 if row["type"]=="รายรับ" else 1)
-            nn = st.text_input("ชื่อ", value=row["title"])
-            na = st.number_input("จำนวน", value=float(row["amount"]), format="%.2f")
-            if st.form_submit_button("บันทึก", type="primary"):
-                supabase.table("entries").update({
-                    "date": nd.isoformat(), "type": nt, "title": nn, "amount": na
-                }).eq("id", row["id"]).execute()
-                st.success("อัปเดตสำเร็จ"); st.rerun()
-        if st.button("ลบ", type="secondary"):
-            supabase.table("entries").delete().eq("id", row["id"]).execute()
-            st.success("ลบสำเร็จ"); st.rerun()
+        col1, col2 = st.columns(2)
+        with col1:
+            st.subheader("แก้ไข")
+            with st.form("edit"):
+                nd = st.date_input("วันที่", value=pd.to_datetime(row["date"]))
+                nt = st.radio("ประเภท", ["รายรับ","รายจ่าย"], 0 if row["type"]=="รายรับ" else 1)
+                nn = st.text_input("ชื่อรายการ", value=row["title"])
+                na = st.number_input("จำนวนเงิน", value=float(row["amount"]), format="%.2f")
+                if st.form_submit_button("บันทึก", type="primary"):
+                    supabase.table("entries").update({
+                        "date": nd.isoformat(), "type": nt, "title": nn, "amount": na
+                    }).eq("id", row["id"]).execute()
+                    st.success("✅ อัปเดตสำเร็จ"); st.rerun()
+        with col2:
+            st.subheader("ลบ")
+            if "del_ok" not in st.session_state or st.session_state.del_ok != row["id"]:
+                if st.button("ลบรายการนี้", type="secondary"):
+                    st.session_state.del_ok = row["id"]
+                    st.warning("⚠️ กดอีกครั้งเพื่อยืนยัน")
+            else:
+                if st.button("ยืนยันการลบ", type="primary"):
+                    supabase.table("entries").delete().eq("id", row["id"]).execute()
+                    del st.session_state.del_ok
+                    st.success("✅ ลบสำเร็จ"); st.rerun()
 
 elif menu == "จัดการบัญชี":
-    st.subheader("ข้อมูลบัญชี")
-    st.write(f"อีเมล: {user.email}")
-    st.write(f"รหัสผู้ใช้: {user.id}")
-            
+    st.subheader("ข้อมูลบัญชีของฉัน")
+    st.markdown(f"""
+    <div class="card">
+        <p><strong>📧 อีเมล:</strong> {user.email}</p>
+        <p><strong>🆔 รหัสผู้ใช้:</strong> {user.id}</p>
+        <p style="color:green; font-weight:bold;">🔒 ปลอดภัย — ข้อมูลแยกกัน</p>
+    </div>
+    """, unsafe_allow_html=True)
+        
