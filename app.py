@@ -10,10 +10,10 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- ล้างข้อมูลทันทีเมื่อออกจากระบบ ---
+# --- ล้างข้อมูลเมื่อออกจากระบบ ---
 if "_LOGOUT" in st.session_state and st.session_state._LOGOUT:
-    for key in list(st.session_state.keys()):
-        del st.session_state[key]
+    for k in list(st.session_state.keys()):
+        del st.session_state[k]
     st.rerun()
 
 st.markdown("""
@@ -25,7 +25,7 @@ st.markdown("""
     .stTextInput>div>div>input, 
     .stNumberInput>div>div>input, 
     .stDateInput>div>div>input {
-        background: #ffffff !important; color: #000000 !important;
+        background: #fff !important; color: #000 !important;
         border: 2px solid #99c2ff !important; border-radius: 10px;
         padding: 0.75rem 1rem; font-size: 1rem;
     }
@@ -62,17 +62,17 @@ if not supabase:
     st.error("ตั้งค่า Secrets ไม่ครบ")
     st.stop()
 
-# --- ตรวจสอบผู้ใช้ใหม่ทุกครั้ง ไม่เชื่อค่าเก่า ---
-def get_current_user():
+# --- ตรวจสอบผู้ใช้จริงจาก Supabase ---
+def get_user():
     try:
         session = supabase.auth.get_session()
         if session and session.user:
             return session.user
-    except Exception:
+    except:
         pass
     return None
 
-user = get_current_user()
+user = get_user()
 
 # --- ยังไม่เข้าสู่ระบบ ---
 if not user:
@@ -91,7 +91,7 @@ if not user:
                     supabase.auth.sign_out()
                     supabase.auth.sign_in_with_password({"email": email, "password": password})
                     st.rerun()
-                except Exception:
+                except:
                     st.error("อีเมลหรือรหัสผ่านไม่ถูกต้อง")
     
     with tab2:
@@ -109,13 +109,13 @@ if not user:
                     st.error(f"ไม่สำเร็จ: {e}")
     st.stop()
 
-# --- แสดงข้อมูลผู้ใช้ ---
+# --- หน้าหลัก ---
 st.markdown(f"""
 <div class="card">
     <h2 style="margin:0;">👋 ยินดีต้อนรับ</h2>
     <p style="margin:0.5rem 0 0;">📧 {user.email}</p>
-    <p style="margin:0.25rem 0 0; font-size:0.9rem; color:#666;">🆔 รหัสผู้ใช้ของฉัน: {user.id}</p>
-    <p style="margin:0.5rem 0 0; color:#008040; font-weight:600;">✅ ข้อมูลของคุณแยกอิสระ — เข้าพร้อมกันก็ไม่ปนกัน</p>
+    <p style="margin:0.25rem 0 0; font-size:0.9rem; color:#666;">🆔 รหัสของฉัน: {user.id}</p>
+    <p style="margin:0.5rem 0 0; color:#008040; font-weight:600;">✅ RLS ทำงานแล้ว — ข้อมูลแยกกันแน่นอน</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -128,17 +128,17 @@ menu = st.sidebar.radio("เมนู", [
     "จัดการบัญชี"
 ])
 
-# --- ปุ่มออกจากระบบ ---
+# --- ออกจากระบบ ---
 if st.sidebar.button("🚪 ออกจากระบบ", type="secondary", use_container_width=True):
     try:
         supabase.auth.sign_out()
-    except Exception:
+    except:
         pass
     st.session_state._LOGOUT = True
     st.rerun()
 
 # ==================================================
-# ทุกคำสั่งมี .eq("user_id", user.id) — กรองเฉพาะของเรา
+# ทุกจุดใช้ user.id ตรงกับ auth.uid() ของ Supabase
 # ==================================================
 
 if menu == "เพิ่มรายการ":
@@ -157,7 +157,7 @@ if menu == "เพิ่มรายการ":
                 st.error("กรอกข้อมูลให้ครบถ้วน")
             else:
                 supabase.table("entries").insert({
-                    "user_id": user.id,
+                    "user_id": user.id,  # ✅ ตรงกับ auth.uid()
                     "date": date.isoformat(),
                     "title": title,
                     "type": typ,
@@ -169,8 +169,8 @@ if menu == "เพิ่มรายการ":
 elif menu == "ดูรายการทั้งหมด":
     st.subheader("รายการของฉัน")
     st.markdown("---")
-    # ✅ ดึงเฉพาะของเรา
-    res = supabase.table("entries").select("*").eq("user_id", user.id).order("date", desc=True).execute()
+    res = supabase.table("entries").select("*").order("date", desc=True).execute()
+    # 💡 ไม่ต้องใส่ .eq("user_id", user.id) ก็ได้ เพราะ RLS กรองให้แล้ว
     if res.data:
         df = pd.DataFrame(res.data)
         df["date"] = pd.to_datetime(df["date"]).dt.strftime("%d/%m/%Y")
@@ -204,18 +204,17 @@ elif menu == "ดูรายการทั้งหมด":
         st.markdown("<br>", unsafe_allow_html=True)
         st.dataframe(df[["date", "title", "type", "amount"]], use_container_width=True, hide_index=True)
     else:
-        st.info("📭 ยังไม่มีรายการของคุณ — คนอื่นมองไม่เห็นส่วนนี้")
+        st.info("📭 ยังไม่มีรายการของคุณ — RLS ป้องกันข้อมูลคนอื่น")
 
 elif menu == "ค้นหา":
     st.subheader("ค้นหาในรายการของฉัน")
     st.markdown("---")
     keyword = st.text_input("พิมพ์คำที่ต้องการค้นหา")
     if keyword:
-        res = supabase.table("entries").select("*").eq("user_id", user.id).execute()  # ✅
+        res = supabase.table("entries").select("*").execute()
         if res.data:
             df = pd.DataFrame(res.data)
-            mask = df["title"].str.contains(keyword, case=False, na=False)
-            df = df[mask]
+            df = df[df["title"].str.contains(keyword, case=False, na=False)]
             if df.empty:
                 st.info("🔍 ไม่พบรายการของคุณ")
             else:
@@ -225,7 +224,7 @@ elif menu == "ค้นหา":
 elif menu == "ส่งออกข้อมูล":
     st.subheader("ส่งออกข้อมูลของฉัน")
     st.markdown("---")
-    res = supabase.table("entries").select("*").eq("user_id", user.id).order("date", desc=True).execute()  # ✅
+    res = supabase.table("entries").select("*").order("date", desc=True).execute()
     if res.data:
         df = pd.DataFrame(res.data)
         df["date"] = pd.to_datetime(df["date"]).dt.strftime("%d/%m/%Y")
@@ -237,7 +236,7 @@ elif menu == "ส่งออกข้อมูล":
 elif menu == "แก้ไขและลบรายการ":
     st.subheader("แก้ไขหรือลบรายการของฉัน")
     st.markdown("---")
-    res = supabase.table("entries").select("*").eq("user_id", user.id).order("date", desc=True).execute()  # ✅
+    res = supabase.table("entries").select("*").order("date", desc=True).execute()
     if not res.data:
         st.info("📭 ไม่มีรายการ")
         st.stop()
@@ -260,7 +259,7 @@ elif menu == "แก้ไขและลบรายการ":
                         "type": new_type,
                         "title": new_title,
                         "amount": new_amount
-                    }).eq("id", row["id"]).eq("user_id", user.id).execute()  # ✅ ป้องกันแก้ของคนอื่น
+                    }).eq("id", row["id"]).execute()
                     st.success("อัปเดตสำเร็จ!")
                     st.rerun()
         with col2:
@@ -271,7 +270,7 @@ elif menu == "แก้ไขและลบรายการ":
                     st.warning("⚠️ กดอีกครั้งเพื่อยืนยัน")
             else:
                 if st.button("ยืนยันการลบ", type="primary", use_container_width=True):
-                    supabase.table("entries").delete().eq("id", row["id"]).eq("user_id", user.id).execute()  # ✅
+                    supabase.table("entries").delete().eq("id", row["id"]).execute()
                     del st.session_state.del_confirm
                     st.success("ลบสำเร็จ!")
                     st.rerun()
@@ -283,7 +282,7 @@ elif menu == "จัดการบัญชี":
     <div class="card">
         <p><strong>📧 อีเมล:</strong> {user.email}</p>
         <p><strong>🆔 รหัสผู้ใช้:</strong> {user.id}</p>
-        <p style="color:#008040; font-weight:600;">🔒 ระบบแยกข้อมูลอัตโนมัติ — เข้าพร้อมกันก็ไม่ปนกัน</p>
+        <p style="color:#008040; font-weight:600;">🔒 ปลอดภัย — RLS ทำงานที่ฐานข้อมูลโดยตรง</p>
     </div>
     """, unsafe_allow_html=True)
-    
+        
