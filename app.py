@@ -3,10 +3,10 @@ import pandas as pd
 from supabase import create_client, Client
 from datetime import datetime
 
-# ========== ล้างข้อมูลเก่าทุกครั้งที่โหลดหน้า ==========
+# ========== ล้างค่าเก่าทิ้งก่อนเริ่ม ==========
 for key in list(st.session_state.keys()):
     del st.session_state[key]
-# ==========================================================
+# =============================================
 
 st.set_page_config(
     page_title="บันทึกรายรับ-รายจ่าย",
@@ -28,7 +28,7 @@ st.markdown("""
         border: 2px solid #99c2ff !important; border-radius: 10px;
         padding: 0.75rem 1rem; font-size: 1rem;
     }
-    .stButton>button, .stFormSubmitButton>button {
+    .stButton>button {
         border-radius: 12px; font-weight: 600;
         padding: 0.75rem 1.5rem; min-height: 3rem;
     }
@@ -37,10 +37,6 @@ st.markdown("""
     section[data-testid="stSidebar"] { background: #002b80 !important; }
     section[data-testid="stSidebar"] * { color: #fff !important; }
     label { font-weight: 600; color: #002b80 !important; }
-    div[data-testid="stForm"] {
-        background: #fff; border-radius: 16px; padding: 1.5rem;
-        border: 2px solid #99c2ff;
-    }
     .card {
         background: #fff; padding: 1.5rem; border-radius: 20px;
         border: 2px solid #99c2ff; margin-bottom: 2rem;
@@ -63,9 +59,9 @@ if not supabase:
 
 def get_user():
     try:
-        session = supabase.auth.get_session()
-        if session and session.user:
-            return session.user
+        s = supabase.auth.get_session()
+        if s and s.user:
+            return s.user
     except:
         pass
     return None
@@ -73,231 +69,146 @@ def get_user():
 user = get_user()
 
 if not user:
-    try:
-        supabase.auth.sign_out()
-    except:
-        pass
+    try: supabase.auth.sign_out()
+    except: pass
 
     st.markdown("# 💰 บันทึกรายรับ-รายจ่าย")
     tab1, tab2 = st.tabs(["🔐 เข้าสู่ระบบ", "✨ ลงทะเบียน"])
     
     with tab1:
         st.subheader("เข้าสู่ระบบ")
-        login_email = st.text_input("อีเมล", key="login_email_input")
-        login_password = st.text_input("รหัสผ่าน", type="password", key="login_password_input")
+        
+        # ========== จุดที่แก้ — ตรวจสอบค่าชัดเจน ==========
+        email = st.text_input("อีเมล")
+        password = st.text_input("รหัสผ่าน", type="password")
         
         if st.button("เข้าสู่ระบบ", type="primary", use_container_width=True):
-            email_clean = login_email.strip() if login_email else ""
-            pass_clean = login_password.strip() if login_password else ""
+            e = email.strip() if email else ""
+            p = password.strip() if password else ""
             
-            if not email_clean or not pass_clean:
-                st.error("กรอกอีเมลและรหัสผ่าน")
+            st.write(f"📋 ค่าที่อ่านได้ — อีเมล: `{e}`, รหัส: `{len(p)} ตัวอักษร`") # แสดงค่าที่อ่านได้จริง
+            
+            if not e or not p:
+                st.error("❌ กรอกอีเมลและรหัสผ่าน")
             else:
                 try:
                     supabase.auth.sign_out()
-                    res = supabase.auth.sign_in_with_password({
-                        "email": email_clean,
-                        "password": pass_clean
-                    })
+                    res = supabase.auth.sign_in_with_password({"email": e, "password": p})
                     st.success("✅ เข้าสู่ระบบสำเร็จ!")
                     st.rerun()
-                except Exception as e:
-                    st.error(f"❌ เข้าไม่ได้: {str(e)}")
+                except Exception as ex:
+                    st.error(f"❌ เข้าไม่ได้: {str(ex)}")
     
     with tab2:
         st.subheader("ลงทะเบียน")
-        reg_email = st.text_input("อีเมล", key="reg_email_input")
-        reg_password = st.text_input("รหัสผ่าน", type="password", key="reg_password_input")
+        reg_email = st.text_input("อีเมล")
+        reg_pass = st.text_input("รหัสผ่าน", type="password")
         
         if st.button("สร้างบัญชี", type="primary", use_container_width=True):
-            email_clean = reg_email.strip() if reg_email else ""
-            pass_clean = reg_password.strip() if reg_password else ""
-            
-            if not email_clean or not pass_clean:
-                st.error("กรอกอีเมลและรหัสผ่าน")
+            re = reg_email.strip() if reg_email else ""
+            rp = reg_pass.strip() if reg_pass else ""
+            if not re or not rp:
+                st.error("กรอกข้อมูลให้ครบ")
             else:
                 try:
-                    res = supabase.auth.sign_up({
-                        "email": email_clean,
-                        "password": pass_clean
-                    })
-                    st.success("✅ สมัครสำเร็จ! ตรวจสอบอีเมลเพื่อยืนยัน")
-                except Exception as e:
-                    st.error(f"❌ ไม่สำเร็จ: {str(e)}")
+                    supabase.auth.sign_up({"email": re, "password": rp})
+                    st.success("✅ สมัครสำเร็จ! ตรวจสอบอีเมล")
+                except Exception as ex:
+                    st.error(f"❌ ไม่สำเร็จ: {str(ex)}")
     st.stop()
 
 # ========== หน้าหลัก ==========
 st.markdown(f"""
 <div class="card">
     <h2 style="margin:0;">👋 ยินดีต้อนรับ</h2>
-    <p style="margin:0.5rem 0 0;">📧 {user.email}</p>
-    <p style="margin:0.25rem 0 0; font-size:0.9rem; color:#666;">🆔 รหัสของฉัน: {user.id}</p>
-    <p style="margin:0.5rem 0 0; color:#008040; font-weight:600;">✅ ข้อมูลแยกกัน — ปลอดภัย</p>
+    <p>📧 {user.email}</p>
+    <p>🆔 {user.id}</p>
+    <p style="color:green; font-weight:bold;">✅ เข้าสู่ระบบสำเร็จ — ข้อมูลแยกกัน</p>
 </div>
 """, unsafe_allow_html=True)
 
 menu = st.sidebar.radio("เมนู", [
-    "เพิ่มรายการ",
-    "ดูรายการทั้งหมด",
-    "ค้นหา",
-    "ส่งออกข้อมูล",
-    "แก้ไขและลบรายการ",
-    "จัดการบัญชี"
+    "เพิ่มรายการ", "ดูรายการทั้งหมด", "ค้นหา",
+    "ส่งออกข้อมูล", "แก้ไขและลบรายการ", "จัดการบัญชี"
 ])
 
-if st.sidebar.button("🚪 ออกจากระบบ", type="secondary", use_container_width=True):
-    try:
-        supabase.auth.sign_out()
-    except:
-        pass
+if st.sidebar.button("🚪 ออกจากระบบ", type="secondary"):
+    try: supabase.auth.sign_out()
+    except: pass
     st.rerun()
 
 if menu == "เพิ่มรายการ":
     st.subheader("เพิ่มรายการใหม่")
-    st.markdown("---")
-    with st.form("add_form", clear_on_submit=True):
-        col1, col2 = st.columns(2)
-        with col1:
-            date = st.date_input("วันที่", value=datetime.today())
-        with col2:
-            typ = st.radio("ประเภท", ["รายรับ", "รายจ่าย"], horizontal=True)
-        title = st.text_input("ชื่อรายการ")
-        amount = st.number_input("จำนวนเงิน (บาท)", min_value=0.0, step=1.0, format="%.2f")
-        
-        if st.form_submit_button("บันทึก", type="primary", use_container_width=True):
-            if not title or amount <= 0:
-                st.error("กรอกข้อมูลให้ครบถ้วน")
+    with st.form("add", clear_on_submit=True):
+        d = st.date_input("วันที่")
+        t = st.radio("ประเภท", ["รายรับ", "รายจ่าย"], horizontal=True)
+        n = st.text_input("ชื่อรายการ")
+        a = st.number_input("จำนวนเงิน", min_value=0.0, format="%.2f")
+        if st.form_submit_button("บันทึก", type="primary"):
+            if not n or a <= 0: st.error("กรอกข้อมูลให้ครบ")
             else:
                 supabase.table("entries").insert({
-                    "user_id": user.id,
-                    "date": date.isoformat(),
-                    "title": title,
-                    "type": typ,
-                    "amount": amount
+                    "user_id": user.id, "date": d.isoformat(),
+                    "title": n, "type": t, "amount": a
                 }).execute()
                 st.success("✅ บันทึกสำเร็จ!")
                 st.rerun()
 
 elif menu == "ดูรายการทั้งหมด":
     st.subheader("รายการของฉัน")
-    st.markdown("---")
     res = supabase.table("entries").select("*").order("date", desc=True).execute()
     if res.data:
         df = pd.DataFrame(res.data)
         df["date"] = pd.to_datetime(df["date"]).dt.strftime("%d/%m/%Y")
-        income = df[df["type"]=="รายรับ"]["amount"].sum()
-        expense = df[df["type"]=="รายจ่าย"]["amount"].sum()
-        balance = income - expense
-        
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            st.markdown(f"""
-            <div style="background:#e6fff2; padding:1.2rem; border-radius:16px; border:2px solid #99ffcc;">
-                <p style="margin:0; color:#006633; font-weight:600;">รายรับรวม</p>
-                <h3 style="margin:0; color:#008040;">+{income:,.2f} บาท</h3>
-            </div>
-            """, unsafe_allow_html=True)
-        with c2:
-            st.markdown(f"""
-            <div style="background:#ffe6e6; padding:1.2rem; border-radius:16px; border:2px solid #ffb3b3;">
-                <p style="margin:0; color:#800000; font-weight:600;">รายจ่ายรวม</p>
-                <h3 style="margin:0; color:#cc0000;">-{expense:,.2f} บาท</h3>
-            </div>
-            """, unsafe_allow_html=True)
-        with c3:
-            bal_color = "#008040" if balance >= 0 else "#cc0000"
-            st.markdown(f"""
-            <div style="background:#e6f0ff; padding:1.2rem; border-radius:16px; border:2px solid #99c2ff;">
-                <p style="margin:0; color:#002b80; font-weight:600;">คงเหลือ</p>
-                <h3 style="margin:0; color:{bal_color};">{balance:,.2f} บาท</h3>
-            </div>
-            """, unsafe_allow_html=True)
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.dataframe(df[["date", "title", "type", "amount"]], use_container_width=True, hide_index=True)
+        inc = df[df["type"]=="รายรับ"]["amount"].sum()
+        exp = df[df["type"]=="รายจ่าย"]["amount"].sum()
+        bal = inc - exp
+        c1,c2,c3 = st.columns(3)
+        with c1: st.info(f"รายรับรวม\n\n**+{inc:,.2f}**")
+        with c2: st.error(f"รายจ่ายรวม\n\n**-{exp:,.2f}**")
+        with c3: st.success(f"คงเหลือ\n\n**{bal:,.2f}**")
+        st.dataframe(df, use_container_width=True, hide_index=True)
     else:
-        st.info("📭 ยังไม่มีรายการของคุณ")
+        st.info("📭 ยังไม่มีรายการ")
 
 elif menu == "ค้นหา":
-    st.subheader("ค้นหาในรายการของฉัน")
-    st.markdown("---")
-    keyword = st.text_input("พิมพ์คำที่ต้องการค้นหา")
-    if keyword:
+    kw = st.text_input("ค้นหา")
+    if kw:
         res = supabase.table("entries").select("*").execute()
         if res.data:
             df = pd.DataFrame(res.data)
-            df = df[df["title"].str.contains(keyword, case=False, na=False)]
-            if df.empty:
-                st.info("🔍 ไม่พบรายการของคุณ")
-            else:
-                df["date"] = pd.to_datetime(df["date"]).dt.strftime("%d/%m/%Y")
-                st.dataframe(df, use_container_width=True, hide_index=True)
+            df = df[df["title"].str.contains(kw, case=False, na=False)]
+            st.dataframe(df, use_container_width=True, hide_index=True)
 
 elif menu == "ส่งออกข้อมูล":
-    st.subheader("ส่งออกข้อมูลของฉัน")
-    st.markdown("---")
-    res = supabase.table("entries").select("*").order("date", desc=True).execute()
+    res = supabase.table("entries").select("*").execute()
     if res.data:
         df = pd.DataFrame(res.data)
-        df["date"] = pd.to_datetime(df["date"]).dt.strftime("%d/%m/%Y")
-        csv = df.to_csv(index=False).encode("utf-8-sig")
-        st.download_button("📥 ดาวน์โหลด CSV", data=csv, file_name="รายรับรายจ่าย.csv", type="primary")
-    else:
-        st.info("📭 ไม่มีข้อมูล")
+        st.download_button("ดาวน์โหลด CSV", df.to_csv(index=False).encode("utf-8"), "รายการ.csv")
 
 elif menu == "แก้ไขและลบรายการ":
-    st.subheader("แก้ไขหรือลบรายการของฉัน")
-    st.markdown("---")
     res = supabase.table("entries").select("*").order("date", desc=True).execute()
-    if not res.data:
-        st.info("📭 ไม่มีรายการ")
-        st.stop()
+    if not res.data: st.info("ไม่มีรายการ"); st.stop()
     df = pd.DataFrame(res.data)
-    selected_title = st.selectbox("เลือกรายการ", ["-- เลือก --"] + list(df["title"]))
-    
-    if selected_title != "-- เลือก --":
-        row = df[df["title"] == selected_title].iloc[0]
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.subheader("แก้ไข")
-            with st.form("edit_form"):
-                new_date = st.date_input("วันที่", value=pd.to_datetime(row["date"]))
-                new_type = st.radio("ประเภท", ["รายรับ", "รายจ่าย"], 
-                                    0 if row["type"] == "รายรับ" else 1, horizontal=True)
-                new_title = st.text_input("ชื่อรายการ", value=row["title"])
-                new_amount = st.number_input("จำนวนเงิน", min_value=0.0, 
-                                             value=float(row["amount"]), format="%.2f")
-                if st.form_submit_button("บันทึกการแก้ไข", type="primary", use_container_width=True):
-                    supabase.table("entries").update({
-                        "date": new_date.isoformat(),
-                        "type": new_type,
-                        "title": new_title,
-                        "amount": new_amount
-                    }).eq("id", row["id"]).execute()
-                    st.success("✅ อัปเดตสำเร็จ!")
-                    st.rerun()
-        
-        with col2:
-            st.subheader("ลบ")
-            if "del_confirm" not in st.session_state or st.session_state.del_confirm != row["id"]:
-                if st.button("ลบรายการนี้", type="secondary", use_container_width=True):
-                    st.session_state.del_confirm = row["id"]
-                    st.warning("⚠️ กดอีกครั้งเพื่อยืนยันการลบ")
-            else:
-                if st.button("ยืนยันการลบ", type="primary", use_container_width=True):
-                    supabase.table("entries").delete().eq("id", row["id"]).execute()
-                    del st.session_state.del_confirm
-                    st.success("✅ ลบสำเร็จ!")
-                    st.rerun()
+    sel = st.selectbox("เลือก", ["-- เลือก --"] + list(df["title"]))
+    if sel != "-- เลือก --":
+        row = df[df["title"]==sel].iloc[0]
+        with st.form("edit"):
+            nd = st.date_input("วันที่", value=pd.to_datetime(row["date"]))
+            nt = st.radio("ประเภท", ["รายรับ","รายจ่าย"], 0 if row["type"]=="รายรับ" else 1)
+            nn = st.text_input("ชื่อ", value=row["title"])
+            na = st.number_input("จำนวน", value=float(row["amount"]), format="%.2f")
+            if st.form_submit_button("บันทึก", type="primary"):
+                supabase.table("entries").update({
+                    "date": nd.isoformat(), "type": nt, "title": nn, "amount": na
+                }).eq("id", row["id"]).execute()
+                st.success("อัปเดตสำเร็จ"); st.rerun()
+        if st.button("ลบ", type="secondary"):
+            supabase.table("entries").delete().eq("id", row["id"]).execute()
+            st.success("ลบสำเร็จ"); st.rerun()
 
 elif menu == "จัดการบัญชี":
-    st.subheader("ข้อมูลบัญชีของฉัน")
-    st.markdown("---")
-    st.markdown(f"""
-    <div class="card">
-        <p><strong>📧 อีเมล:</strong> {user.email}</p>
-        <p><strong>🆔 รหัสผู้ใช้:</strong> {user.id}</p>
-        <p style="color:#008040; font-weight:600;">🔒 ปลอดภัย — RLS ทำงานแยกข้อมูล</p>
-    </div>
-    """, unsafe_allow_html=True)
-                    
+    st.subheader("ข้อมูลบัญชี")
+    st.write(f"อีเมล: {user.email}")
+    st.write(f"รหัสผู้ใช้: {user.id}")
+            
