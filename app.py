@@ -3,7 +3,7 @@ import pandas as pd
 from supabase import create_client, Client
 from datetime import datetime
 
-# ========== ล้างทิ้งหมดก่อนเริ่ม ==========
+# ล้างค่าเก่าทิ้ง
 for key in list(st.session_state.keys()):
     del st.session_state[key]
 
@@ -18,7 +18,7 @@ st.markdown("""
 <style>
     .stApp { background: #d4f8d4 !important; }
     p, label, div, span, h1, h2, h3 { color: #000000 !important; }
-    .stTextInput>div>div>input, .stPasswordInput>div>div>input {
+    .stTextInput>div>div>input {
         background: #fff !important; color: #000 !important;
         border: 2px solid #90ee90 !important; border-radius: 10px;
         padding: 0.75rem 1rem; font-size: 1rem;
@@ -67,18 +67,16 @@ if not user:
     
     with tab1:
         st.subheader("เข้าสู่ระบบ")
-        email = st.text_input("อีเมล", value="", key="login_email_input")
-        password = st.text_input("รหัสผ่าน", type="password", value="", key="login_pass_input")
+        # ใช้ตัวแปรรับค่าโดยตรง ไม่ผ่านตัวแปรอื่น
+        login_email = st.text_input("อีเมล", key="login_email_input")
+        login_password = st.text_input("รหัสผ่าน", type="password", key="login_password_input")
         
-        # แสดงค่าที่อ่านได้จริง
-        show_email = email.strip() if email else ""
-        show_pass_len = len(password.strip()) if password else 0
-        st.write(f"📋 ตรวจสอบ: อีเมล={show_email} | รหัส={show_pass_len} ตัว")
+        # ตรวจสอบค่าจริง
+        e = login_email.strip() if login_email else ""
+        p = login_password.strip() if login_password else ""
+        st.write(f"📋 ตรวจสอบ: อีเมล={e} | รหัส={len(p)} ตัว")
         
         if st.button("เข้าสู่ระบบ", type="primary", use_container_width=True):
-            e = email.strip()
-            p = password.strip()
-            
             if not e:
                 st.error("❌ กรอกอีเมล")
             elif not p:
@@ -94,9 +92,9 @@ if not user:
                     if "email not confirmed" in err:
                         st.error("❌ ยังไม่ยืนยันอีเมล → เปิดอีเมล กดลิงก์ที่ส่งมา")
                     elif "invalid credential" in err or "login failed" in err:
-                        st.error("❌ อีเมลหรือรหัสผ่านไม่ถูกต้อง → กดแท็บ 'ลืมรหัสผ่าน' ตั้งใหม่เลย")
+                        st.error("❌ อีเมลหรือรหัสผ่านไม่ถูกต้อง → กด 'ลืมรหัสผ่าน' ตั้งใหม่")
                     elif "email not found" in err:
-                        st.error("❌ ไม่มีบัญชีนี้ → กดแท็บ 'ลงทะเบียน' สมัครใหม่")
+                        st.error("❌ ไม่มีบัญชีนี้ → ไปลงทะเบียน")
                     else:
                         st.error(f"❌ สาเหตุ: {str(ex)}")
     
@@ -252,4 +250,3 @@ elif menu == "จัดการบัญชี":
         <p style="color:green; font-weight:bold;">🔒 ปลอดภัย — ข้อมูลคนเดียว</p>
     </div>
     """, unsafe_allow_html=True)
-    
