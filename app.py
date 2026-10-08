@@ -12,15 +12,17 @@ st.set_page_config(
 
 st.markdown("""
 <style>
+    /* พื้นหลังหลัก */
     .stApp {
         background: #f0f6ff;
     }
     .block-container {
-        padding-top: 2rem !important;
+        padding-top: 1.5rem !important;
         padding-bottom: 2rem !important;
-        padding-left: 1.2rem !important;
-        padding-right: 1.2rem !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
     }
+    /* หัวข้อ ชัดเจน */
     h1, h2, h3 {
         color: #002b80 !important;
         font-weight: 700 !important;
@@ -28,8 +30,31 @@ st.markdown("""
     }
     p, label, div, span {
         color: #001a4d !important;
-        line-height: 1.6 !important;
+        line-height: 1.5 !important;
+        font-size: 1rem !important;
     }
+    /* ===== แก้จุดสำคัญ: ช่องวันที่ ช่องกรอกข้อมูล ===== */
+    .stTextInput>div>div>input, 
+    .stNumberInput>div>div>input, 
+    .stDateInput>div>div>input {
+        background: #ffffff !important;
+        color: #000000 !important;
+        border: 2px solid #99c2ff !important;
+        border-radius: 10px !important;
+        padding: 0.75rem 1rem !important;
+        font-size: 1rem !important;
+        font-weight: 500 !important;
+    }
+    /* ปฏิทินตัวเลือกวันที่ */
+    .stDateInput>div>div>div,
+    div[data-baseweb="calendar"] {
+        background: #ffffff !important;
+        color: #000000 !important;
+    }
+    div[data-baseweb="calendar"] button {
+        color: #002b80 !important;
+    }
+    /* ปุ่ม */
     .stButton>button, .stFormSubmitButton>button {
         border-radius: 12px !important;
         font-weight: 600 !important;
@@ -49,40 +74,43 @@ st.markdown("""
         background: #475569 !important;
         color: #ffffff !important;
     }
+    /* แถบด้านบน */
+    header[data-testid="stHeader"] {
+        background: #ffffff !important;
+    }
+    /* แถบด้านข้าง */
     section[data-testid="stSidebar"] {
         background: #002b80 !important;
     }
     section[data-testid="stSidebar"] * {
         color: #ffffff !important;
     }
+    /* ป้ายชื่อเข้าใจง่าย */
     label {
-        font-weight: 600;
+        font-weight: 600 !important;
         color: #002b80 !important;
         font-size: 1rem !important;
     }
-    .stTextInput>div>div>input, 
-    .stNumberInput>div>div>input, 
-    .stDateInput>div>div>input {
-        background: #ffffff !important;
-        color: #001a4d !important;
-        border-radius: 10px !important;
-        border: 2px solid #99c2ff !important;
-        padding: 0.75rem 1rem !important;
-        font-size: 1rem !important;
-    }
+    /* กล่องฟอร์ม */
     div[data-testid="stForm"] {
         background: #ffffff !important;
         border-radius: 16px !important;
         padding: 1.5rem !important;
-        border: 1px solid #cce0ff !important;
+        border: 2px solid #99c2ff !important;
     }
+    /* กล่องแจ้งเตือน */
     .stAlert {
         background: #ffffff !important;
         border-radius: 12px !important;
         border: 2px solid #cce0ff !important;
     }
-    .st-bf, .st-bh, .st-bi, .st-bj {
-        color: #001a4d !important;
+    /* การ์ดต้อนรับ */
+    .welcome-card {
+        background: #ffffff;
+        padding: 1.5rem;
+        border-radius: 20px;
+        border: 2px solid #99c2ff;
+        margin-bottom: 2rem;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -137,7 +165,7 @@ if "user" not in st.session_state:
 user = st.session_state.user
 
 st.markdown(f"""
-<div style="background:#ffffff; padding:1.5rem; border-radius:20px; border:2px solid #99c2ff; margin-bottom:2rem;">
+<div class="welcome-card">
     <h2 style="margin:0; color:#002b80;">👋 ยินดีต้อนรับ</h2>
     <p style="color:#001a4d; margin:0.5rem 0 0 0; font-size:1rem;">{user.email}</p>
 </div>
@@ -297,4 +325,4 @@ elif menu == "จัดการบัญชี":
     st.markdown("---")
     st.write(f"อีเมล: {user.email}")
     st.write(f"รหัสผู้ใช้: {user.id}")
-    
+        
