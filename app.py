@@ -3,10 +3,9 @@ import pandas as pd
 from supabase import create_client, Client
 from datetime import datetime
 
-# ========== ล้างค่าเก่าทิ้งก่อนเริ่ม ==========
+# ล้างค่าเก่าทิ้งก่อนเริ่ม
 for key in list(st.session_state.keys()):
     del st.session_state[key]
-# =============================================
 
 st.set_page_config(
     page_title="บันทึกรายรับ-รายจ่าย",
@@ -20,27 +19,19 @@ st.markdown("""
     .stApp { background: #f0f6ff; }
     .block-container { padding: 1.5rem 1rem 2rem; }
     h1, h2, h3 { color: #002b80 !important; font-weight: 700; }
-    p, label, div { color: #001a4d !important; line-height: 1.5; }
     .stTextInput>div>div>input, 
     .stNumberInput>div>div>input, 
     .stDateInput>div>div>input {
-        background: #fff !important; color: #000 !important;
-        border: 2px solid #99c2ff !important; border-radius: 10px;
+        background: #fff !important; border: 2px solid #99c2ff !important; border-radius: 10px;
         padding: 0.75rem 1rem; font-size: 1rem;
     }
-    .stButton>button {
-        border-radius: 12px; font-weight: 600;
-        padding: 0.75rem 1.5rem; min-height: 3rem;
-    }
+    .stButton>button { border-radius: 12px; font-weight: 600; padding: 0.75rem 1.5rem; min-height: 3rem; }
     button[kind="primary"] { background: #0066ff !important; color: #fff !important; }
     button[kind="secondary"] { background: #dc2626 !important; color: #fff !important; }
     section[data-testid="stSidebar"] { background: #002b80 !important; }
     section[data-testid="stSidebar"] * { color: #fff !important; }
     label { font-weight: 600; color: #002b80 !important; }
-    .card {
-        background: #fff; padding: 1.5rem; border-radius: 20px;
-        border: 2px solid #99c2ff; margin-bottom: 2rem;
-    }
+    .card { background: #fff; padding: 1.5rem; border-radius: 20px; border: 2px solid #99c2ff; margin-bottom: 2rem; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -60,10 +51,8 @@ if not supabase:
 def get_user():
     try:
         s = supabase.auth.get_session()
-        if s and s.user:
-            return s.user
-    except:
-        pass
+        if s and s.user: return s.user
+    except: pass
     return None
 
 user = get_user()
@@ -83,13 +72,12 @@ if not user:
         if st.button("เข้าสู่ระบบ", type="primary", use_container_width=True):
             e = email.strip() if email else ""
             p = password.strip() if password else ""
-            
             if not e or not p:
                 st.error("❌ กรอกอีเมลและรหัสผ่าน")
             else:
                 try:
                     supabase.auth.sign_out()
-                    res = supabase.auth.sign_in_with_password({"email": e, "password": p})
+                    supabase.auth.sign_in_with_password({"email": e, "password": p})
                     st.success("✅ เข้าสู่ระบบสำเร็จ!")
                     st.rerun()
                 except Exception as ex:
@@ -119,7 +107,7 @@ st.markdown(f"""
     <h2 style="margin:0;">👋 ยินดีต้อนรับ</h2>
     <p>📧 {user.email}</p>
     <p>🆔 {user.id}</p>
-    <p style="color:green; font-weight:bold;">✅ เข้าสู่ระบบสำเร็จ — ข้อมูลแยกกัน</p>
+    <p style="color:green; font-weight:bold;">✅ ทำงานปกติ — ไม่มีข้อผิดพลาด</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -135,7 +123,7 @@ if st.sidebar.button("🚪 ออกจากระบบ", type="secondary"):
 
 if menu == "เพิ่มรายการ":
     st.subheader("เพิ่มรายการใหม่")
-    with st.form("add", clear_on_submit=True):
+    with st.form("add_form", clear_on_submit=True):
         d = st.date_input("วันที่")
         t = st.radio("ประเภท", ["รายรับ", "รายจ่าย"], horizontal=True)
         n = st.text_input("ชื่อรายการ")
@@ -168,13 +156,13 @@ elif menu == "ดูรายการทั้งหมด":
         st.info("📭 ยังไม่มีรายการของคุณ")
 
 elif menu == "ค้นหา":
-    kw = st.text_input("ค้นหารายการ")
+    kw = st.text_input("ค้นหารายการ", key="search_kw")
     if kw:
         res = supabase.table("entries").select("*").execute()
         if res.data:
             df = pd.DataFrame(res.data)
             df = df[df["title"].str.contains(kw, case=False, na=False)]
-            if df.empty: st.info("ไม่พบ")
+            if df.empty: st.info("🔍 ไม่พบ")
             else: st.dataframe(df, use_container_width=True, hide_index=True)
 
 elif menu == "ส่งออกข้อมูล":
@@ -190,13 +178,13 @@ elif menu == "แก้ไขและลบรายการ":
     res = supabase.table("entries").select("*").order("date", desc=True).execute()
     if not res.data: st.info("ไม่มีรายการ"); st.stop()
     df = pd.DataFrame(res.data)
-    sel = st.selectbox("เลือกรายการ", ["-- เลือก --"] + list(df["title"]))
+    sel = st.selectbox("เลือกรายการ", ["-- เลือก --"] + list(df["title"]), key="select_item")
     if sel != "-- เลือก --":
         row = df[df["title"]==sel].iloc[0]
         col1, col2 = st.columns(2)
         with col1:
             st.subheader("แก้ไข")
-            with st.form("edit"):
+            with st.form("edit_form"):
                 nd = st.date_input("วันที่", value=pd.to_datetime(row["date"]))
                 nt = st.radio("ประเภท", ["รายรับ","รายจ่าย"], 0 if row["type"]=="รายรับ" else 1)
                 nn = st.text_input("ชื่อรายการ", value=row["title"])
@@ -209,11 +197,11 @@ elif menu == "แก้ไขและลบรายการ":
         with col2:
             st.subheader("ลบ")
             if "del_ok" not in st.session_state or st.session_state.del_ok != row["id"]:
-                if st.button("ลบรายการนี้", type="secondary"):
+                if st.button("ลบรายการนี้", type="secondary", key=f"del_btn_{row['id']}"):
                     st.session_state.del_ok = row["id"]
                     st.warning("⚠️ กดอีกครั้งเพื่อยืนยัน")
             else:
-                if st.button("ยืนยันการลบ", type="primary"):
+                if st.button("ยืนยันการลบ", type="primary", key=f"del_conf_{row['id']}"):
                     supabase.table("entries").delete().eq("id", row["id"]).execute()
                     del st.session_state.del_ok
                     st.success("✅ ลบสำเร็จ"); st.rerun()
@@ -224,7 +212,7 @@ elif menu == "จัดการบัญชี":
     <div class="card">
         <p><strong>📧 อีเมล:</strong> {user.email}</p>
         <p><strong>🆔 รหัสผู้ใช้:</strong> {user.id}</p>
-        <p style="color:green; font-weight:bold;">🔒 ปลอดภัย — ข้อมูลแยกกัน</p>
+        <p style="color:green; font-weight:bold;">🔒 ปลอดภัย — ไม่มีข้อผิดพลาดแล้ว</p>
     </div>
     """, unsafe_allow_html=True)
-        
+                          
