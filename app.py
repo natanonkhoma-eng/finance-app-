@@ -66,7 +66,6 @@ if not user:
     with tab1:
         st.subheader("เข้าสู่ระบบ")
         
-        # ✅ แก้ตรงนี้: ใช้ session_state คุมค่าโดยตรง ไม่ให้หาย
         if "login_email" not in st.session_state:
             st.session_state.login_email = ""
         if "login_pass" not in st.session_state:
@@ -158,7 +157,7 @@ st.markdown(f"""
     <h2 style="margin:0;">👋 ยินดีต้อนรับ</h2>
     <p>📧 {user.email}</p>
     <p>🆔 {user.id}</p>
-    <p style="font-weight:bold; color:green;">✅ เข้าสู่ระบบสำเร็จ — ข้อมูลปลอดภัยแยกกัน</p>
+    <p style="font-weight:bold; color:green;">✅ ข้อมูลแยกกัน — เห็นแค่ของคุณคนเดียว</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -187,6 +186,7 @@ if menu == "เพิ่มรายการ":
             elif a <= 0:
                 st.error("จำนวนเงินต้องมากกว่า 0")
             else:
+                # ✅ ผูกกับ user.id ชัดเจน
                 supabase.table("entries").insert({
                     "user_id": user.id, "date": d.isoformat(),
                     "title": n, "type": t, "amount": a
@@ -196,7 +196,8 @@ if menu == "เพิ่มรายการ":
 
 elif menu == "ดูรายการทั้งหมด":
     st.subheader("รายการของฉัน")
-    res = supabase.table("entries").select("*").order("date", desc=True).execute()
+    # ✅ กรองเฉพาะของเราเท่านั้น
+    res = supabase.table("entries").select("*").eq("user_id", user.id).order("date", desc=True).execute()
     if res.data:
         df = pd.DataFrame(res.data)
         df["date"] = pd.to_datetime(df["date"]).dt.strftime("%d/%m/%Y")
@@ -214,7 +215,8 @@ elif menu == "ดูรายการทั้งหมด":
 elif menu == "ค้นหา":
     kw = st.text_input("ค้นหารายการ", key="search_kw")
     if kw:
-        res = supabase.table("entries").select("*").execute()
+        # ✅ กรองเฉพาะของเรา
+        res = supabase.table("entries").select("*").eq("user_id", user.id).execute()
         if res.data:
             df = pd.DataFrame(res.data)
             df = df[df["title"].str.contains(kw, case=False, na=False)]
@@ -222,7 +224,8 @@ elif menu == "ค้นหา":
             else: st.dataframe(df, use_container_width=True, hide_index=True)
 
 elif menu == "ส่งออกข้อมูล":
-    res = supabase.table("entries").select("*").order("date", desc=True).execute()
+    # ✅ กรองเฉพาะของเรา
+    res = supabase.table("entries").select("*").eq("user_id", user.id).order("date", desc=True).execute()
     if res.data:
         df = pd.DataFrame(res.data)
         csv = df.to_csv(index=False).encode("utf-8-sig")
@@ -231,7 +234,8 @@ elif menu == "ส่งออกข้อมูล":
         st.info("ไม่มีข้อมูล")
 
 elif menu == "แก้ไขและลบรายการ":
-    res = supabase.table("entries").select("*").order("date", desc=True).execute()
+    # ✅ กรองเฉพาะของเรา
+    res = supabase.table("entries").select("*").eq("user_id", user.id).order("date", desc=True).execute()
     if not res.data: st.info("ไม่มีรายการ"); st.stop()
     df = pd.DataFrame(res.data)
     sel = st.selectbox("เลือกรายการ", ["-- เลือก --"] + list(df["title"]), key="select_item")
@@ -246,9 +250,10 @@ elif menu == "แก้ไขและลบรายการ":
                 nn = st.text_input("ชื่อรายการ", value=row["title"], key="edit_title")
                 na = st.number_input("จำนวนเงิน", value=float(row["amount"]), format="%.2f")
                 if st.form_submit_button("บันทึก", type="primary"):
+                    # ✅ อัปเดตเฉพาะรายการของเรา
                     supabase.table("entries").update({
                         "date": nd.isoformat(), "type": nt, "title": nn, "amount": na
-                    }).eq("id", row["id"]).execute()
+                    }).eq("id", row["id"]).eq("user_id", user.id).execute()
                     st.success("✅ อัปเดตสำเร็จ"); st.rerun()
         with col2:
             st.subheader("ลบ")
@@ -258,7 +263,8 @@ elif menu == "แก้ไขและลบรายการ":
                     st.warning("⚠️ กดอีกครั้งเพื่อยืนยัน")
             else:
                 if st.button("ยืนยัน", type="primary", key=f"del2_{row['id']}"):
-                    supabase.table("entries").delete().eq("id", row["id"]).execute()
+                    # ✅ ลบเฉพาะของเรา
+                    supabase.table("entries").delete().eq("id", row["id"]).eq("user_id", user.id).execute()
                     del st.session_state.del_ok
                     st.success("✅ ลบสำเร็จ"); st.rerun()
 
@@ -268,7 +274,7 @@ elif menu == "จัดการบัญชี":
     <div class="card">
         <p><strong>📧 อีเมล:</strong> {user.email}</p>
         <p><strong>🆔 รหัสผู้ใช้:</strong> {user.id}</p>
-        <p style="color:green; font-weight:bold;">🔒 ปลอดภัย — ข้อมูลคนเดียว</p>
+        <p style="color:green; font-weight:bold;">🔒 ปลอดภัย — เห็นแค่ข้อมูลของคุณคนเดียว</p>
     </div>
     """, unsafe_allow_html=True)
         
